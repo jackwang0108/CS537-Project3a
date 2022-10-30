@@ -2,7 +2,6 @@
 
 CS537 Project3 codes by team Shihong Wang and Tong Xia
 
-
 ## Updates
 
 ### 2022.10.27: Project Detail Update!
@@ -13,10 +12,9 @@ Professor Remzi just release the Project instructions.
 
 The discussion from piazza make it clear that what shold the test file be like, and how to sort each record. So, a shell generates the test file is created.
 
+## Things need to know
 
-### Things need to know
-
-#### About key and value
+### 1. About key and value
 
 > **clarification on input**
 >
@@ -31,8 +29,7 @@ The discussion from piazza make it clear that what shold the test file be like, 
 
 source: https://piazza.com/class/l7kt5onxp5h4hp/post/1181
 
-
-#### About input files
+### 2. About input files
 
 > **Can we get a sample input file for p3a?**
 >
@@ -57,7 +54,6 @@ source: https://piazza.com/class/l7kt5onxp5h4hp/post/1181
 >
 > We will definitely release some sample input soon, probably with the tests.
 
-
 ## Project Instuctions (from website)
 
 ### Important Dates and Other Stuff
@@ -77,7 +73,7 @@ Send questions using piazza or use office hours. If the question is about your c
 The basic project description is found `<a href=https://github.com/remzi-arpacidusseau/ostep-projects/tree/master/concurrency-sort>`here.`</a>`  Please read this carefully in order to understand exactly what to do.
 
 This project is to be done on the lab machines (listed `<a href=https://csl.cs.wisc.edu/docs/csl/2012-08-16-instructional-facilities/>`
-here`</a>` ), so you can learn more about programming in C on a typical UNIX-based platform (Linux)
+here `</a>` ), so you can learn more about programming in C on a typical UNIX-based platform (Linux)
 
 ### Differences
 
@@ -87,7 +83,7 @@ There are no differences from the github specified project.
 
 `<b>`Before beginning:`</b>` If you don't remember much about the Unix/C environment, read `<a href=http://pages.cs.wisc.edu/~remzi/OSTEP/lab-tutorial.pdf>`this tutorial.`</a>`  It has some useful tips for programming.
 
-`<b>`This project should be done in groups of one or two.`</b>` Copying code (from other groups) is considered cheating. Read `<a href=../dontcheat.html>`this`</a>`  for more info on what is OK and what is not. Please help us all have a good semester by not doing this.
+`<b>`This project should be done in groups of one or two.`</b>` Copying code (from other groups) is considered cheating. Read `<a href=../dontcheat.html>`this `</a>`  for more info on what is OK and what is not. Please help us all have a good semester by not doing this.
 
 ### Contest
 
@@ -95,15 +91,15 @@ There will be a contest for the **fastest** sort. More details coming soon. Winn
 
 ### Handing It In
 
-You should turn in two files, `<code>`psort.c`</code>` and `<code>`Makefile`</code>` . The makefile should build the `<code>`psort`</code>` executable.
+You should turn in two files, `<code>`psort.c `</code>` and `<code>`Makefile `</code>` . The makefile should build the `<code>`psort `</code>` executable.
 
-The handin directory is `<code>`~cs537-1/handin/login/p3a`</code>` where `<code>`login`</code>` is your login. For example, Remzi's login is `<code>`remzi`</code>` , and thus he would copy his beautiful code into `<code>`~cs537-1/handin/remzi/p3a`</code>` . Copying of these files is accomplished with the `<code>`cp`</code>` program, as follows:
+The handin directory is `<code>`~cs537-1/handin/login/p3a `</code>` where `<code>`login `</code>` is your login. For example, Remzi's login is `<code>`remzi `</code>` , and thus he would copy his beautiful code into `<code>`~cs537-1/handin/remzi/p3a `</code>` . Copying of these files is accomplished with the `<code>`cp `</code>` program, as follows:
 
 ```shell
  cp psort.c Makefile ~cs537-1/handin/remzi/p3a/
 ```
 
-When done, type `<code>`ls ~cs537-1/handin/remzi/p3a`</code>` to see that all the files are in place correctly.
+When done, type `<code>`ls ~cs537-1/handin/remzi/p3a `</code>` to see that all the files are in place correctly.
 
 ```shell
 ls ~cs537-1/handin/remzi/p3a
