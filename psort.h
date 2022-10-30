@@ -10,14 +10,16 @@
 
 #define MAX_FILENAME 256
 
+#define psort_error(s) _psort_error(s, __LINE__)
+
 
 /**
- * @brief psort_error用于输出错误信息，若定义DEBUG宏则输出错误行号
+ * @brief _psort_error用于输出错误信息，若定义DEBUG宏则输出错误行号, 和posort_error宏函数搭配使用
  * 
  * @author Shihong Wang
  * @date 2022.10.29
 */
-void psort_error(char *str, int lineno){
+void _psort_error(char *str, int lineno){
     char *str_c;
     #ifdef DEBUG
         // int to alphabetic-number
@@ -57,7 +59,7 @@ char * byte2char(char *buffer, int len){
 int read_records(char *filename, char** buffer){
     FILE *bin_file = fopen(filename, "rb");
     if (NULL == bin_file){
-        psort_error("file open error", __LINE__);
+        psort_error("file open error");
         exit(EXIT_FAILURE);
     }
 
@@ -67,12 +69,12 @@ int read_records(char *filename, char** buffer){
     fseek(bin_file, 0L, 0);
 
     if (byte % 100 != 0){
-        psort_error("record mismatch", __LINE__);
+        psort_error("record mismatch");
     }
 
     *buffer = (char *)malloc(sizeof(char) * byte);
     if (fread(*buffer, 1, byte, bin_file) != byte)
-        psort_error("record read fail", __LINE__);
+        psort_error("record read fail");
 
     return byte;
 }
