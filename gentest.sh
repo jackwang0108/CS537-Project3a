@@ -1,0 +1,1 @@
+dd if=/dev/random of=test.bin bs=1000 count=1 iflag=fullblock
