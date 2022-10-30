@@ -54,6 +54,8 @@ source: https://piazza.com/class/l7kt5onxp5h4hp/post/1181
 >
 > We will definitely release some sample input soon, probably with the tests.
 
+source: https://piazza.com/class/l7kt5onxp5h4hp/post/1200
+
 ## Project Instuctions (from website)
 
 ### Important Dates and Other Stuff
