@@ -12,6 +12,30 @@ Professor Remzi just release the Project instructions.
 
 The discussion from piazza make it clear that what shold the test file be like, and how to sort each record. So, a shell generates the test file is created.
 
+## How to develop
+
+### tools
+
+There is a few shell tools for develop: `init.sh`, `autobuild.sh` and `gentest.sh`
+
+To use them, first run
+```shell
+cd path-to-project
+source init.sh
+```
+and then, you can use the shell tools with tab-completion
+
+`autobuild.sh` is used for automatically build the project.
+```shell
+autobu<Tab><Enter>
+```
+
+and `gentest.sh` is used for aotumatically generate test file.
+```shell
+gent<Tab><Enter>
+```
+
+
 ## Things need to know
 
 ### 1. About key and value
