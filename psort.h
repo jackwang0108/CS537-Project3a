@@ -103,6 +103,7 @@ char* byte2char(const byteStream buffer, int len)
  * @author Shihong Wang
  * @date 2022.10.29
  */
+// TODO: 增加多线程读取支持
 int read_records(char *filename, byteStream *buffer)
 {
     FILE *bin_file = fopen(filename, "rb");
@@ -161,10 +162,12 @@ int parse_records(byteStream buffer, record_t *records[], int len){
  * @date 2022.10.30
  */
 int get_key(record_t record){
-    unsigned int temp = 0;
-    for (int i = 0; i < 4; i++)
-        temp = temp << 8 | ((int) (*record)[i]);
-    return (int) temp;
+    return *(int *)(*record);
+    // 下面的计算方式有问题，忽略了大端序和小端序
+    // unsigned int temp = 0;
+    // for (int i = 0; i < 4; i++)
+    //     temp = temp << 8 | ((int) (*record)[i]);
+    // return (int) temp;
 }
 
 /**
