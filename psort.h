@@ -1,10 +1,12 @@
 #ifndef _PSORT_H
 #define _PSORT_H
 
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #define DEBUG
 
@@ -189,7 +191,7 @@ int parse_records(byteStream buffer, record_t *records[], int len){
  * @author Shihong Wang
  * @date 2022.10.30
  */
-int compare(record_t left, record_t right){
+int less_than(record_t left, record_t right){
     int left_key = get_key(left);
     int right_key = get_key(right);
     if (left_key < right_key)
@@ -206,18 +208,32 @@ int compare(record_t left, record_t right){
  * @param records record数组
  * @param i 第一个元素的index
  * @param j 第二个元素的index
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.30
  */
-void swap(record_t records[], int i, int j){
-    record_t temp = records[j];
-    records[j] = records[j+1];
-    records[j+1] = temp;
+void swap(record_t *records, int i, int j){
+    record_t temp = records[i];
+    records[i] = records[j];
+    records[j] = temp;
 }
 
+/**
+ * @brief 冒泡排序，大保底
+ * 
+ * @param records record数组
+ * @param num record的数量
+ * @param reverse 若为true，则按照降序排列，否则按照升序排列
+ * @return int 状态码
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.30
+ */
 int bubble_sort(record_t records[], int num, bool reverse){
     int sign = reverse == true ? 1 : -1;
     for (int i = 0; i < num; i++){
         for (int j = 0; j < num - 1 - i; j++){
-            if (compare(records[j], records[j+1]) * sign >= 0)
+            if (less_than(records[j], records[j+1]) * sign >= 0)
                 swap(records, j, j+1);
         }
     }
@@ -225,23 +241,52 @@ int bubble_sort(record_t records[], int num, bool reverse){
 }
 
 // TODO: fix quick sort bug
+/**
+ * @brief 快速排序的partition函数
+ * 
+ * @param records record数组
+ * @param low 左侧index
+ * @param high 右侧index
+ * @param reverse 若为true，则按照降序排列，否则按照生序排列
+ * @return int 新的pivot的index
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.31
+ */
 int _partition(record_t records[], int low, int high, bool reverse){
     int pivot = low;
     record_t pivot_value = records[pivot];
     int sign = reverse == true ? 1 : -1;
     while (low < high)
     {
-        while (low < high && compare(records[high], records[pivot]) * sign > 0)
+        while (low < high && less_than(records[high], records[pivot]) * sign > 0)
             high--;
-        swap(records, low, high);
-        while (low < high && compare(records[low], records[pivot]) *sign <= 0)
+        // swap(records, low, high);
+        records[low] = records[high];
+        while (low < high && less_than(records[low], records[pivot]) *sign <= 0)
             low++;
-        swap(records, high, low);
+        // swap(records, high, low);
+        records[high] = records[low];
     }
     records[low] = pivot_value;
     return low;
 }
 
+
+/**
+ * @brief 快速排序母函数
+ * 
+ * @param records record数组
+ * @param low 左侧index
+ * @param high 右侧index
+ * @param reverse 若为true则降序排列，否则升序排列
+ * @return int 程序状态码
+ * 
+ * @bug 排序有的值位置好像不太对，感觉是枢轴的值选的有问题
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.31
+ */
 int quick_sort(record_t records[], int low, int high, bool reverse){
     if (low < high){
         int pivot = _partition(records, low, high, reverse);
