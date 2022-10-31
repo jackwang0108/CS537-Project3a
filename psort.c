@@ -12,32 +12,35 @@
 
 // Warning:
 //    使用tmux和printKey在一起有BUG，输出不全而且可能会出错（record数量 > 1000时），初步猜测是tmux的字符缓冲区有问题，来不及刷新
+
+
+#define PRINTKEY 0
+
 int main(int argc, char* argv[]){
 
     byteStream buffer = (byteStream) malloc(sizeof(char) * 10);
     for (int i = 1; i < argc; i++){
         int len = read_records(argv[i], &buffer, 0, -1);
-        printf("%s -> %d\n", argv[i], len);
+        printf("Test file: %s\n", argv[i]);
+        printf("%s -> %d records\n", argv[i], len);
+        delim;
 
         record_t *records;
         int num = parse_records(buffer, &records, len);
-        printf("%s\n", byte2char(*records[0], BYTE_PER_RECORD));
-
-        printf("%d\n", less_than(records[0], records[1]));
-
-        // printKeys(records, num);
 
         clock_t start, end;
-        double total;
-
-        start = clock();
-        // bubble_sort(records, num, false);
-        quick_sort(records, 0, num - 1, false);
-        end = clock();
-
-        printf("After Sorts:\n");
-        printKeys(records, num);
-        printf("Sort time used: %4f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+        for (int j = 0; j < sizeof(sort_func) / sizeof(sort_func[0]); j++){
+            printf("Benchmark: %s\n", func_name[j]);
+            start = clock();
+            sort_func[j](records, num, false);
+            end = clock();
+            if (PRINTKEY == 1){
+                printf("After Sorts:\n");
+                printKeys(records, num);
+            }
+            printf("Sort time used: %4f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+            delim;
+        }
     }
 
     return 0;

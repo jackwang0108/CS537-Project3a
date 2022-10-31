@@ -12,6 +12,7 @@
 
 #define BYTE_PER_RECORD 100
 
+#define delim printf("--------------------------------------\n");
 #define psort_error(s) _psort_error(s, __LINE__)
 
 typedef unsigned char byte;
@@ -287,14 +288,45 @@ int _partition(record_t records[], int low, int high, bool reverse){
  * @author Shihong Wang
  * @date 2022.10.31
  */
-int quick_sort(record_t records[], int low, int high, bool reverse){
+int _quick_sort(record_t records[], int low, int high, bool reverse){
     if (low < high){
         int pivot = _partition(records, low, high, reverse);
-        quick_sort(records, low, pivot - 1, reverse);
-        quick_sort(records, pivot + 1, high, reverse);
+        _quick_sort(records, low, pivot - 1, reverse);
+        _quick_sort(records, pivot + 1, high, reverse);
     }
     return 0;
 }
 
+
+/**
+ * @brief 快速排序 warpper，为了benchmark
+ * 
+ * @param records record数组
+ * @param num record的数量
+ * @param reverse 若为true，则按照降序排列，否则按照升序排列
+ * @return int 状态码
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.31
+ */
+int quick_sort(record_t records[], int num, bool reverse){
+    return _quick_sort(records, 0, num - 1, reverse);
+}
+
+
+
+
+
+#define BUBBLE_SORT 0
+#define QUICK_SORT 1
+char *func_name[] = {
+    [BUBBLE_SORT] = "bubble_sort",
+    [QUICK_SORT] = "quick_sort",
+};
+
+int (*sort_func[])(record_t *, int, bool) = {
+    [BUBBLE_SORT] = bubble_sort,
+    [QUICK_SORT] = quick_sort,
+};
 
 #endif
