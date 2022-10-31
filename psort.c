@@ -12,14 +12,21 @@ int main(int argc, char* argv[]){
 
     byteStream buffer = (byteStream) malloc(sizeof(char) * 10);
     for (int i = 1; i < argc; i++){
-        int len = read_records(argv[i], &buffer);
+        int len = read_records(argv[i], &buffer, 0, -1);
         printf("%s -> %d\n", argv[i], len);
 
         record_t *records;
         int num = parse_records(buffer, &records, len);
-        printf("%s\n", byte2char(*records[0], RECORD_SIZE));
+        printf("%s\n", byte2char(*records[0], BYTE_PER_RECORD));
 
-        compare(records[0], records[1]);
+        printf("%d\n", compare(records[0], records[1]));
+
+        printKeys(records, num);
+
+        // bubble_sort(records, num, false);
+        quick_sort(records, 0, num - 1, false);
+        printf("After Sorts:\n");
+        printKeys(records, num);
     }
 
     return 0;
