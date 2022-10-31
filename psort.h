@@ -9,11 +9,13 @@
 #define DEBUG
 
 #define MAX_FILENAME 256
+#define RECORD_SIZE 100
 
 #define psort_error(s) _psort_error(s, __LINE__)
 
 typedef unsigned char byte;
-typedef unsigned char* byteStream;
+typedef byte* byteStream;
+typedef byteStream* record_t;
 
 /**
  * @brief _psort_error用于输出错误信息，若定义DEBUG宏则输出错误行号, 和posort_error宏函数搭配使用
@@ -55,8 +57,7 @@ bool _is_little_endian()
     char *a = (char *)&i;
     if (*a == 1)
         return 1;
-    else
-        return 0;
+    return 0;
 }
 
 
@@ -77,6 +78,8 @@ char* byte2char(const byteStream buffer, int len)
     int pos = 0;
     bool little_endian = _is_little_endian();
     char *str = (char *)malloc(sizeof(char) * len * 2);
+    if (NULL == str)
+        psort_error("malloc fail");
     for (int i = 0; i < len; i++)
     {
         if (little_endian){
@@ -104,10 +107,7 @@ int read_records(char *filename, byteStream *buffer)
 {
     FILE *bin_file = fopen(filename, "rb");
     if (NULL == bin_file)
-    {
         psort_error("file open error");
-        exit(EXIT_FAILURE);
-    }
 
     int byte = 0;
     fseek(bin_file, 0L, 2);
@@ -115,15 +115,77 @@ int read_records(char *filename, byteStream *buffer)
     fseek(bin_file, 0L, 0);
 
     if (byte % 100 != 0)
-    {
         psort_error("record mismatch");
-    }
 
     *buffer = (byteStream)malloc(sizeof(char) * byte);
+    if (NULL == *buffer)
+        psort_error("malloc fail");
     if (fread(*buffer, 1, byte, bin_file) != byte)
         psort_error("record read fail");
 
     return byte;
+}
+
+/**
+ * @brief parse_records接受二进制文件buffer，将解析后的record存入records数组中
+ * 
+ * @param buffer 二进制文件内存地址
+ * @param records record数组的地址
+ * @param len 二进制文件的字节数
+ * @return int 解析得到的record数
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.30
+ */
+int parse_records(byteStream buffer, record_t *records[], int len){
+    int num = len / 100;
+
+    *records = (record_t*) malloc(sizeof(record_t) * len);
+    if (NULL == *records)
+        psort_error("malloc fail");
+
+    for (int i = 0; i < num; i++){
+        (*records)[i] = (byteStream *) malloc(sizeof(byteStream));
+        *(*records)[i] = (buffer + 100 * i);
+    }
+    return num;
+}
+
+/**
+ * @brief get_key 从给定的record中读取key（前四个字节拼接得到的signed int）
+ * 
+ * @param record 需要读取key的record
+ * @return int record的key
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.30
+ */
+int get_key(record_t record){
+    unsigned int temp = 0;
+    for (int i = 0; i < 4; i++)
+        temp = temp << 8 | ((int) (*record)[i]);
+    return (int) temp;
+}
+
+/**
+ * @brief compare比较两个record的key，若左边大于右边，返回1，相等返回0，小于返回-1
+ * 
+ * @param left 左侧的Record
+ * @param right 右侧的Record
+ * @return int 比较的结果
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.30
+ */
+int compare(record_t left, record_t right){
+    int left_key = get_key(left);
+    int right_key = get_key(right);
+    if (left_key < right_key)
+        return -1;
+    else if (left_key == right_key)
+        return 0;
+    else
+        return 1;
 }
 
 #endif

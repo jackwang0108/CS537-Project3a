@@ -7,7 +7,12 @@ int main(int argc, char* argv[]){
     for (int i = 1; i < argc; i++){
         int len = read_records(argv[i], &buffer);
         printf("%s -> %d\n", argv[i], len);
-        printf("%s", byte2char(buffer, len));
+
+        record_t *records;
+        int num = parse_records(buffer, &records, len);
+        printf("%s\n", byte2char(*records[0], RECORD_SIZE));
+
+        compare(records[0], records[1]);
     }
 
     return 0;
