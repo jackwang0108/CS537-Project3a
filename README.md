@@ -80,6 +80,61 @@ source: https://piazza.com/class/l7kt5onxp5h4hp/post/1181
 
 source: https://piazza.com/class/l7kt5onxp5h4hp/post/1200
 
+
+
+### 3. About test file generator
+
+> Here is the testcase generator we will be using to generate the official testcases, and you all can use for your own debugging and such. You will not be able to read this test file due to the fact it is in binary format. If you feel you need something to visualize, you can just type a series of (100 x n) characters to create a test file with n entries.
+>
+> ```c
+> #include <fcntl.h>
+> #include <assert.h>
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+> 
+> typedef struct rec {
+>     int key;
+>     int value[24]; // 96 bytes
+> } rec_t;
+> 
+> int main(int argc, char *argv[]) {
+>     if (argc != 3) {
+>         fprintf(stderr, "generate numkeys file\n");
+>         exit(1);
+>     }
+>     int n = atoi(argv[1]);
+>     char *file = argv[2];
+>     int fd = open(file, O_CREAT | O_WRONLY | O_TRUNC, 0666);
+>     if (fd < 0) {
+>         perror("open");
+>         exit(1);
+>     }
+>     int k;
+>     for (k = 0; k < n; k++) {
+>         long u = random();
+>         rec_t r;
+>         r.key = u;
+>         int i;
+>         for (i = 0; i < 24; i++) {
+>             r.value[i] = random();
+>         }
+>         int rc = write(fd, &r, sizeof(rec_t));
+>         assert(rc == sizeof(rec_t));
+>     }
+>     close(fd);
+>     return 0;
+> }
+> ```
+
+source: https://piazza.com/class/l7kt5onxp5h4hp/post/1283
+
+
+
+### 4. Project 3A FAQ
+
+https://piazza.com/class/l7kt5onxp5h4hp/post/1283
+
 ## Project Instuctions (from website)
 
 ### Important Dates and Other Stuff
