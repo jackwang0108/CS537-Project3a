@@ -5,6 +5,8 @@
 //    目前的打算是分块读取文件，然后每个块内使用快排/Alpha排序……排序方法
 //    然后每个块使用一个单独的线程来排序
 //    每个块排序完毕之后再使用归并排序或者其他递归排序方法进行排序
+//    sort_worker处理sort_job，而后生成merge_job，merge_worker进行归并排序，中间有一个merge_queue
+//    标准的多consumer、producer模型
 
 // Attention:
 //    估计测试文件会很大，不然没有办法有效地测试性能
@@ -55,12 +57,10 @@ int main(int argc, char* argv[]){
         int sort_thd_num = infer_thread_num();
         thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
 
-        // TODO: quick sort还是有bug
-        sort_job* job = sort_job_init(BUBBLE_SORT, 0, -1, false, argv[i]);
-        // sort_job* job = sort_job_init(QUICK_SORT, 0, -1, false, argv[i]);
+        // sort_job* job = sort_job_init(BUBBLE_SORT, 0, -1, false, argv[i]);
+        sort_job* job = sort_job_init(QUICK_SORT, 0, -1, false, argv[i]);
 
         printf("Main: %s\n", func_name[job->sort_func]);
-        printf("Main, filename: %s\n", job->filename);
         start = clock();
         pthread_create(&thread_pool[0], NULL, sort_worker, (void *) job);
         pthread_join(thread_pool[0], NULL);

@@ -20,8 +20,9 @@
 #define SORT_SUCCESS 0
 #define SORT_FAILURE 1
 
-#define delim printf("--------------------------------------\n");
 #define psort_error(s) _psort_error(s, __LINE__)
+#define get_key(record) *(int *)(*record)
+#define delim printf("--------------------------------------\n");
 
 typedef unsigned char byte;
 typedef byte* byteStream;
@@ -76,17 +77,19 @@ bool _is_little_endian()
  * @param record 需要读取key的record
  * @return int record的key
  * 
+ * @warning 过时的函数，因为函数跳转太慢了，换成了宏函数
+ * 
  * @author Shihong Wang
  * @date 2022.10.30
  */
-int get_key(record_t record){
-    return *(int *)(*record);
-    // 下面的计算方式有问题，忽略了大端序和小端序
-    // unsigned int temp = 0;
-    // for (int i = 0; i < 4; i++)
-    //     temp = temp << 8 | ((int) (*record)[i]);
-    // return (int) temp;
-}
+// int get_key(record_t record){
+//     return *(int *)(*record);
+//     // 下面的计算方式有问题，忽略了大端序和小端序
+//     // unsigned int temp = 0;
+//     // for (int i = 0; i < 4; i++)
+//     //     temp = temp << 8 | ((int) (*record)[i]);
+//     // return (int) temp;
+// }
 
 
 /**
@@ -266,10 +269,10 @@ int _partition(record_t records[], int low, int high, bool reverse){
     int sign = reverse == true ? -1 : 1;
     while (low < high)
     {
-        while (low < high && less_than(records[pivot], records[high]) * sign > 0)
+        while (low < high && less_than(pivot_value, records[high]) * sign >= 0)
             high--;
         records[low] = records[high];
-        while (low < high && less_than(records[low], records[pivot]) * sign >= 0)
+        while (low < high && less_than(records[low], pivot_value) * sign >= 0)
             low++;
         records[high] = records[low];
     }
@@ -414,7 +417,6 @@ int sort_job_release(sort_job* job){
  */
 void* sort_worker(void *arg){
     sort_job *job = (sort_job *) arg;
-    printf("thd -> %ld: filename: %s\n", (long) pthread_self(), job->filename);
     int byte = read_records(job->filename, &job->buffer, job->seek, job->num);
     job->num = byte / 100;
 
