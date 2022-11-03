@@ -351,6 +351,9 @@ typedef struct _sort_job
  * @brief infer_thread_num 用于推断需要多少个线程进行排序
  * 
  * @return int 需要的线程数量
+ * 
+ * @author Shihong Wang
+ * @date 2022.11.2
  */
 // TODO 写完这个函数
 int infer_thread_num(){
@@ -367,6 +370,9 @@ int infer_thread_num(){
  * @param reverse 
  * @param filename 
  * @return sort_job* 指向结构体的指针
+ * 
+ * @author Shihong Wang
+ * @date 2022.11.2
  */
 sort_job* sort_job_init(int sort_func, int seek, int num, bool reverse, char* filename){
     sort_job *job = (sort_job *) malloc(sizeof(sort_job));
@@ -384,6 +390,9 @@ sort_job* sort_job_init(int sort_func, int seek, int num, bool reverse, char* fi
  * 
  * @param job 指向sort_job的指针
  * @return int 
+ * 
+ * @author Shihong Wang
+ * @date 2022.11.3
  */
 int sort_job_release(sort_job* job){
     free(job->filename);
@@ -399,6 +408,9 @@ int sort_job_release(sort_job* job){
  * @param job 
  * @param bin_file 
  * @return void* 
+ * 
+ * @author Shihong Wang
+ * @date 2022.11.3
  */
 void* sort_worker(void *arg){
     sort_job *job = (sort_job *) arg;

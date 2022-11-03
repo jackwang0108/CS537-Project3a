@@ -14,6 +14,9 @@
 //    使用tmux和printKey在一起有BUG，输出不全而且可能会出错（record数量 > 1000时），初步猜测是tmux的字符缓冲区有问题，来不及刷新
 
 
+// Notes:
+//    测试排序函数注释掉MAIN宏，使用BENCHMARK宏, 测试Parallel Sort则注释掉BENCHMARK宏，使用MAIN宏
+
 // #define BENCHMARK
 #define MAIN
 #define PRINTKEY 1
