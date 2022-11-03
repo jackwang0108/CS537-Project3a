@@ -21,11 +21,18 @@
 #define BYTE_PER_RECORD 100
 #define MAX_SORTED_JOBS 2
 
+#ifndef DEBUG
 #define get_key(record) *(int *)(*record)
+#endif
 #define psort_error(s) _psort_error(s, __LINE__)
 #define min(a, b) (a < b ? a : b)
 #define delim printf("--------------------------------------\n");
 
+/**
+ * @brief 1个 byte 就是8位 bit，不考虑符号，所以 byte 就是 unsigned char
+ * @brief 字节流 就是 byte 数组，所以 byteStream 就是 byte*
+ * @brief 一个 记录 就是100个字节，所以 record 就是 byteStream*
+ */
 typedef unsigned char byte;
 typedef byte *byteStream;
 typedef byteStream *record_t;
@@ -84,14 +91,18 @@ bool _is_little_endian()
  * @author Shihong Wang
  * @date 2022.10.30
  */
-// int get_key(record_t record){
-//     return *(int *)(*record);
-//     // 下面的计算方式有问题，忽略了大端序和小端序
-//     // unsigned int temp = 0;
-//     // for (int i = 0; i < 4; i++)
-//     //     temp = temp << 8 | ((int) (*record)[i]);
-//     // return (int) temp;
-// }
+#ifdef DEBUG
+int get_key(record_t record){
+    if (NULL == record)
+        psort_error("record == NULL, didn't initialize?");
+    return *(int *)(*record);
+    // 下面的计算方式有问题，忽略了大端序和小端序
+    // unsigned int temp = 0;
+    // for (int i = 0; i < 4; i++)
+    //     temp = temp << 8 | ((int) (*record)[i]);
+    // return (int) temp;
+}
+#endif
 
 /**
  * @brief byte2char接受字节流, 而后返回字节流的16进制表示, 效果类似于xxd

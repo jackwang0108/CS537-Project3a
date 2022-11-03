@@ -20,8 +20,8 @@
 // Notes:
 //    测试排序函数注释掉MAIN宏，使用BENCHMARK宏, 测试Parallel Sort则注释掉BENCHMARK宏，使用MAIN宏
 
-#define BENCHMARK
-// #define MAIN
+// #define BENCHMARK
+#define MAIN
 #define PRINTKEY 1
 
 int main(int argc, char* argv[]){
@@ -55,13 +55,13 @@ int main(int argc, char* argv[]){
 
 #ifdef MAIN
         // Code for parallel sort
-        int sort_thd_num = infer_thread_num() + 3;
+        int sort_thd_num = infer_thread_num() + 1;
         pthread_mutex_init(&sorted_jobs_mutex, NULL);
         pthread_cond_init(&sorted_jobs_cond, NULL);
         pthread_t *thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
 
         int seek = 0;
-        int num = 5;
+        int num = 10;
         sort_job **jobs = (sort_job **) malloc(sizeof(sort_job*) * sort_thd_num);
         for (int j = 0; j < sort_thd_num; j++){
             jobs[j] = sort_job_init(QUICK_SORT, seek, num, false, argv[i]);
@@ -81,6 +81,17 @@ int main(int argc, char* argv[]){
             }
             delim;
         }
+
+
+        int ptr = 0;
+        int sum = jobs[0]->num + jobs[1]->num;
+        record_t *records = (record_t *) malloc(sizeof(record_t) * sum);
+        for (int j = 0; j < 2; j++){
+            for (int k = 0; k < jobs[j]->num; k++)
+                records[ptr++] = jobs[j]->records[k];
+        }
+        _merge_sort(records, sum, false, 10);
+        printKeys(records, sum);
 
 #endif
 
