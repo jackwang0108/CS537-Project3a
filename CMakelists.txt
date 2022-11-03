@@ -1,6 +1,10 @@
 project(CS537-Project3A)
 
 set(
+    CMAKE_C_STANDARD 99
+)
+
+set(
     EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin
 )
 
