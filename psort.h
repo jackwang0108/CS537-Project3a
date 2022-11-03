@@ -334,12 +334,15 @@ pthread_t *thread_pool;
 
 typedef struct _sort_job
 {
+    // Notes: init 必须指定
     int sort_func;
     int seek;
     int num;
-    bool done;
     bool reverse;
     char *filename;
+
+    // Notes: done, records和buffer由worker填充
+    bool done;
     record_t *records;
     byteStream buffer;
 } sort_job;
@@ -354,8 +357,41 @@ int infer_thread_num(){
     return MAX_THREAD;
 }
 
-// TODO 新加一个job_init和job_release
+/**
+ * @brief sort_job结构体的初始化函数
+ * 
+ * @param sort_func 
+ * @param seek 
+ * @param num 
+ * @param done 
+ * @param reverse 
+ * @param filename 
+ * @return sort_job* 指向结构体的指针
+ */
+sort_job* sort_job_init(int sort_func, int seek, int num, bool reverse, char* filename){
+    sort_job *job = (sort_job *) malloc(sizeof(sort_job));
+    job->sort_func = sort_func;
+    job->seek = seek;
+    job->num = num;
+    job->reverse = reverse;
+    job->filename = (char *) malloc(sizeof(char) * strlen(filename));
+    strcpy(job->filename, filename);
+    return job;
+}
 
+/**
+ * @brief sort_job的析构函数
+ * 
+ * @param job 指向sort_job的指针
+ * @return int 
+ */
+int sort_job_release(sort_job* job){
+    free(job->filename);
+    free(job->buffer);
+    free(job->records);
+    free(job);
+    return 0;
+}
 
 /**
  * @brief sort_word是排序线程执行的函数
@@ -370,14 +406,13 @@ void* sort_worker(void *arg){
     int byte = read_records(job->filename, &job->buffer, job->seek, job->num);
     job->num = byte / 100;
 
-    record_t *records;
-    if(parse_records(job->buffer, &records, byte) != job->num){
+    if(parse_records(job->buffer, &job->records, byte) != job->num){
         char str[MAX_CHAR];
         sprintf(str, "thd -> %ld: parse_records mismatch!", (long) pthread_self());
         psort_error(str);
     }
 
-    int result = sort_func[job->sort_func](records, job->num, job->reverse);
+    int result = sort_func[job->sort_func](job->records, job->num, job->reverse);
     if (result != SORT_SUCCESS){
         char str[MAX_CHAR];
         sprintf(str, "thd -> %ld: sort fail!", (long) pthread_self());

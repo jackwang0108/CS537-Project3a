@@ -50,27 +50,21 @@ int main(int argc, char* argv[]){
 #ifdef MAIN
         // Code for parallel sort
         int sort_thd_num = infer_thread_num();
-        sort_job* jobs = (sort_job*) malloc(sizeof(jobs) * sort_thd_num);
         thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
 
-        jobs[0].filename = (char *) malloc(sizeof(char) * strlen(argv[i]));
-        strcpy(jobs[0].filename, argv[1]);
-        jobs[0].seek = 0;
-        jobs[0].num = -1;
-        jobs[0].reverse = false;
-        jobs[0].sort_func = 1;
+        // TODO: quick sort还是有bug
+        sort_job* job = sort_job_init(BUBBLE_SORT, 0, -1, false, argv[i]);
+        // sort_job* job = sort_job_init(QUICK_SORT, 0, -1, false, argv[i]);
 
-        // BUG: Main中的filename和传入sort_worker的filename不一样，但是调试时间长了又没问题了(F5到断点等一会），推测是因为pthread调度的问题
-        // TODO: 修上面这个BUG
-        printf("Main: %s\n", func_name[jobs[0].sort_func]);
-        printf("Main, filename: %s\n", jobs[0].filename);
+        printf("Main: %s\n", func_name[job->sort_func]);
+        printf("Main, filename: %s\n", job->filename);
         start = clock();
-        pthread_create(&thread_pool[0], NULL, sort_worker, (void *) jobs);
+        pthread_create(&thread_pool[0], NULL, sort_worker, (void *) job);
         pthread_join(thread_pool[0], NULL);
         end = clock();
         if (PRINTKEY == 1){
                 printf("After Sorts:\n");
-                printKeys(jobs[0].records, jobs[0].num);
+                printKeys(job->records, job->num);
         }
         printf("Sort time used: %4f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
         delim;
