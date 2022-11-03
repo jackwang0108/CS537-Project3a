@@ -241,7 +241,6 @@ int bubble_sort(record_t records[], int num, bool reverse){
     return 0;
 }
 
-// TODO: fix quick sort bug
 /**
  * @brief 快速排序的partition函数
  * 
@@ -257,16 +256,14 @@ int bubble_sort(record_t records[], int num, bool reverse){
 int _partition(record_t records[], int low, int high, bool reverse){
     int pivot = low;
     record_t pivot_value = records[pivot];
-    int sign = reverse == true ? 1 : -1;
+    int sign = reverse == true ? -1 : 1;
     while (low < high)
     {
-        while (low < high && less_than(records[high], records[pivot]) * sign > 0)
+        while (low < high && less_than(records[pivot], records[high]) * sign > 0)
             high--;
-        // swap(records, low, high);
         records[low] = records[high];
-        while (low < high && less_than(records[low], records[pivot]) *sign <= 0)
+        while (low < high && less_than(records[low], records[pivot]) * sign >= 0)
             low++;
-        // swap(records, high, low);
         records[high] = records[low];
     }
     records[low] = pivot_value;
@@ -282,8 +279,6 @@ int _partition(record_t records[], int low, int high, bool reverse){
  * @param high 右侧index
  * @param reverse 若为true则降序排列，否则升序排列
  * @return int 程序状态码
- * 
- * @bug 排序有的值位置好像不太对，感觉是枢轴的值选的有问题
  * 
  * @author Shihong Wang
  * @date 2022.10.31
