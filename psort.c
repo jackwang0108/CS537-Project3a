@@ -20,8 +20,8 @@
 // Notes:
 //    测试排序函数注释掉MAIN宏，使用BENCHMARK宏, 测试Parallel Sort则注释掉BENCHMARK宏，使用MAIN宏
 
-// #define BENCHMARK
-#define MAIN
+#define BENCHMARK
+// #define MAIN
 #define PRINTKEY 1
 
 int main(int argc, char* argv[]){
@@ -56,6 +56,8 @@ int main(int argc, char* argv[]){
 #ifdef MAIN
         // Code for parallel sort
         int sort_thd_num = infer_thread_num() + 3;
+        pthread_mutex_init(&sorted_jobs_mutex, NULL);
+        pthread_cond_init(&sorted_jobs_cond, NULL);
         pthread_t *thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
 
         int seek = 0;
