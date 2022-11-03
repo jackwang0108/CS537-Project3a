@@ -124,7 +124,18 @@ char* byte2char(const byteStream buffer, int len)
     return str;
 }
 
+/**
+ * @brief 输出records中每个record的key
+ * 
+ * @param records record数组
+ * @param num record数组中的record数量
+ * 
+ * @author Shihong Wang
+ * @date 2022.10.30
+ */
 void printKeys(record_t records[], int num){
+    if (NULL == records)
+        psort_error("record is NULL, did not malloc records? Or worker thread didn't run first?");
     for (int i = 0; i < num; i++)
         printf("%4d -> %11d\n", i, get_key(records[i]));
 }
@@ -163,6 +174,7 @@ int read_records(char *filename, byteStream *buffer, int seek, int num)
     if (fread(*buffer, 1, byte, bin_file) != byte)
         psort_error("record read fail");
 
+    fclose(bin_file);
     return byte;
 }
 
@@ -333,7 +345,6 @@ int (*sort_func[])(record_t *, int, bool) = {
 };
 
 
-pthread_t *thread_pool;
 
 typedef struct _sort_job
 {
@@ -366,12 +377,11 @@ int infer_thread_num(){
 /**
  * @brief sort_job结构体的初始化函数
  * 
- * @param sort_func 
- * @param seek 
- * @param num 
- * @param done 
- * @param reverse 
- * @param filename 
+ * @param sort_func 使用的sort function类型
+ * @param seek 跳过多少个record
+ * @param num 读取的record数, -1 表示读取全部
+ * @param reverse 是否降序排列，若为true则降序排序
+ * @param filename 需要读取的二进制文件文件名
  * @return sort_job* 指向结构体的指针
  * 
  * @author Shihong Wang

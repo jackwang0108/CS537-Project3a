@@ -13,7 +13,8 @@
 //    所以我严重怀疑等截止日期快到的时候实验机器会变得极其卡顿
 
 // Warning:
-//    使用tmux和printKey在一起有BUG，输出不全而且可能会出错（record数量 > 1000时），初步猜测是tmux的字符缓冲区有问题，来不及刷新
+//    1. 使用tmux和printKey在一起有BUG，输出不全而且可能会出错（record数量 > 1000时），初步猜测是tmux的字符缓冲区有问题，来不及刷新
+// *  2. 关于pthread调度问题，pthread是在主线程运行一段时间之后才会运行子线程，所以如果子线程还没有给record分配内存，但是主线程又已经printKey，就会报错
 
 
 // Notes:
@@ -54,23 +55,31 @@ int main(int argc, char* argv[]){
 
 #ifdef MAIN
         // Code for parallel sort
-        int sort_thd_num = infer_thread_num();
-        thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
+        int sort_thd_num = infer_thread_num() + 3;
+        pthread_t *thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
 
-        // sort_job* job = sort_job_init(BUBBLE_SORT, 0, -1, false, argv[i]);
-        sort_job* job = sort_job_init(QUICK_SORT, 0, -1, false, argv[i]);
-
-        printf("Main: %s\n", func_name[job->sort_func]);
-        start = clock();
-        pthread_create(&thread_pool[0], NULL, sort_worker, (void *) job);
-        pthread_join(thread_pool[0], NULL);
-        end = clock();
-        if (PRINTKEY == 1){
-                printf("After Sorts:\n");
-                printKeys(job->records, job->num);
+        int seek = 0;
+        int num = 5;
+        sort_job **jobs = (sort_job **) malloc(sizeof(sort_job*) * sort_thd_num);
+        for (int j = 0; j < sort_thd_num; j++){
+            jobs[j] = sort_job_init(QUICK_SORT, seek, num, false, argv[i]);
+            pthread_create(&thread_pool[j], NULL, sort_worker, (void *) jobs[j]);
+            seek += num;
         }
-        printf("Sort time used: %4f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
-        delim;
+
+        for (int j = 0; j < sort_thd_num; j++){
+            pthread_join(thread_pool[j], NULL);
+        }
+
+        for (int j = 0; j < sort_thd_num; j++){
+            printf("Main, Thd -> %d: %s\n", j, func_name[jobs[j]->sort_func]);
+            if (PRINTKEY == 1){
+                printf("After Sorts:\n");
+                printKeys(jobs[j]->records, jobs[j]->num);
+            }
+            delim;
+        }
+
 #endif
 
     }
