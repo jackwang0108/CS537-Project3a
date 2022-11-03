@@ -14,21 +14,25 @@
 //    使用tmux和printKey在一起有BUG，输出不全而且可能会出错（record数量 > 1000时），初步猜测是tmux的字符缓冲区有问题，来不及刷新
 
 
-#define PRINTKEY 0
+// #define BENCHMARK
+#define MAIN
+#define PRINTKEY 1
 
 int main(int argc, char* argv[]){
 
-    byteStream buffer = (byteStream) malloc(sizeof(char) * 10);
+    byteStream buffer;
     for (int i = 1; i < argc; i++){
-        int len = read_records(argv[i], &buffer, 0, -1);
+        clock_t start, end;
+
+        int byte = read_records(argv[i], &buffer, 0, -1);
         printf("Test file: %s\n", argv[i]);
-        printf("%s -> %d records\n", argv[i], len);
+        printf("%s -> %d bytes\n", argv[i], byte);
         delim;
 
+#ifdef BENCHMARK
+        // Code for benchmark
         record_t *records;
-        int num = parse_records(buffer, &records, len);
-
-        clock_t start, end;
+        int num = parse_records(buffer, &records, byte);
         for (int j = 0; j < sizeof(sort_func) / sizeof(sort_func[0]); j++){
             printf("Benchmark: %s\n", func_name[j]);
             start = clock();
@@ -41,6 +45,37 @@ int main(int argc, char* argv[]){
             printf("Sort time used: %4f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
             delim;
         }
+#endif
+
+#ifdef MAIN
+        // Code for parallel sort
+        int sort_thd_num = infer_thread_num();
+        sort_job* jobs = (sort_job*) malloc(sizeof(jobs) * sort_thd_num);
+        thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * sort_thd_num);
+
+        jobs[0].filename = (char *) malloc(sizeof(char) * strlen(argv[i]));
+        strcpy(jobs[0].filename, argv[1]);
+        jobs[0].seek = 0;
+        jobs[0].num = -1;
+        jobs[0].reverse = false;
+        jobs[0].sort_func = 1;
+
+        // BUG: Main中的filename和传入sort_worker的filename不一样，但是调试时间长了又没问题了(F5到断点等一会），推测是因为pthread调度的问题
+        // TODO: 修上面这个BUG
+        printf("Main: %s\n", func_name[jobs[0].sort_func]);
+        printf("Main, filename: %s\n", jobs[0].filename);
+        start = clock();
+        pthread_create(&thread_pool[0], NULL, sort_worker, (void *) jobs);
+        pthread_join(thread_pool[0], NULL);
+        end = clock();
+        if (PRINTKEY == 1){
+                printf("After Sorts:\n");
+                printKeys(jobs[0].records, jobs[0].num);
+        }
+        printf("Sort time used: %4f seconds\n", (double)(end - start) / CLOCKS_PER_SEC);
+        delim;
+#endif
+
     }
 
     return 0;

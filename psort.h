@@ -2,15 +2,23 @@
 #define _PSORT_H
 
 #include <time.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <pthread.h>
 #include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 
 #define DEBUG
 
+#define MAX_THREAD 1
+#define MAX_CHAR 50
 #define BYTE_PER_RECORD 100
+#define SORT_SUCCESS 0
+#define SORT_FAILURE 1
 
 #define delim printf("--------------------------------------\n");
 #define psort_error(s) _psort_error(s, __LINE__)
@@ -124,21 +132,20 @@ void printKeys(record_t records[], int num){
  * @param filename 二进制文件名
  * @param buffer &(char *), 指向char *的指针的地址，不用提前malloc分配地址
  * @param seek 跳过多少个record
- * @param len 读取的record数, -1 表示读取全部
+ * @param num 读取的record数, -1 表示读取全部
  * @return int 读取的字节数
  *
  * @author Shihong Wang
  * @date 2022.10.29
  */
-// TODO: 增加多线程读取支持
-int read_records(char *filename, byteStream *buffer, int seek, int len)
+int read_records(char *filename, byteStream *buffer, int seek, int num)
 {
     FILE *bin_file = fopen(filename, "rb");
     if (NULL == bin_file)
         psort_error("file open error");
 
-    int byte = len * BYTE_PER_RECORD;
-    if (len < 0){
+    int byte = num * BYTE_PER_RECORD;
+    if (num < 0){
         fseek(bin_file, 0L, 2);
         byte = ftell(bin_file);
     }
@@ -161,16 +168,16 @@ int read_records(char *filename, byteStream *buffer, int seek, int len)
  * 
  * @param buffer 二进制文件内存地址
  * @param records record数组的地址
- * @param len 二进制文件的字节数
+ * @param byte 二进制文件的字节数
  * @return int 解析得到的record数
  * 
  * @author Shihong Wang
  * @date 2022.10.30
  */
-int parse_records(byteStream buffer, record_t *records[], int len){
-    int num = len / 100;
+int parse_records(byteStream buffer, record_t *records[], int byte){
+    int num = byte / 100;
 
-    *records = (record_t*) malloc(sizeof(record_t) * len);
+    *records = (record_t*) malloc(sizeof(record_t) * byte);
     if (NULL == *records)
         psort_error("malloc fail");
 
@@ -238,7 +245,7 @@ int bubble_sort(record_t records[], int num, bool reverse){
                 swap(records, j, j+1);
         }
     }
-    return 0;
+    return SORT_SUCCESS;
 }
 
 /**
@@ -289,7 +296,7 @@ int _quick_sort(record_t records[], int low, int high, bool reverse){
         _quick_sort(records, low, pivot - 1, reverse);
         _quick_sort(records, pivot + 1, high, reverse);
     }
-    return 0;
+    return SORT_SUCCESS;
 }
 
 
@@ -309,11 +316,9 @@ int quick_sort(record_t records[], int num, bool reverse){
 }
 
 
-
-
-
 #define BUBBLE_SORT 0
 #define QUICK_SORT 1
+
 char *func_name[] = {
     [BUBBLE_SORT] = "bubble_sort",
     [QUICK_SORT] = "quick_sort",
@@ -323,5 +328,64 @@ int (*sort_func[])(record_t *, int, bool) = {
     [BUBBLE_SORT] = bubble_sort,
     [QUICK_SORT] = quick_sort,
 };
+
+
+pthread_t *thread_pool;
+
+typedef struct _sort_job
+{
+    int sort_func;
+    int seek;
+    int num;
+    bool done;
+    bool reverse;
+    char *filename;
+    record_t *records;
+    byteStream buffer;
+} sort_job;
+
+/**
+ * @brief infer_thread_num 用于推断需要多少个线程进行排序
+ * 
+ * @return int 需要的线程数量
+ */
+// TODO 写完这个函数
+int infer_thread_num(){
+    return MAX_THREAD;
+}
+
+// TODO 新加一个job_init和job_release
+
+
+/**
+ * @brief sort_word是排序线程执行的函数
+ * 
+ * @param job 
+ * @param bin_file 
+ * @return void* 
+ */
+void* sort_worker(void *arg){
+    sort_job *job = (sort_job *) arg;
+    printf("thd -> %ld: filename: %s\n", (long) pthread_self(), job->filename);
+    int byte = read_records(job->filename, &job->buffer, job->seek, job->num);
+    job->num = byte / 100;
+
+    record_t *records;
+    if(parse_records(job->buffer, &records, byte) != job->num){
+        char str[MAX_CHAR];
+        sprintf(str, "thd -> %ld: parse_records mismatch!", (long) pthread_self());
+        psort_error(str);
+    }
+
+    int result = sort_func[job->sort_func](records, job->num, job->reverse);
+    if (result != SORT_SUCCESS){
+        char str[MAX_CHAR];
+        sprintf(str, "thd -> %ld: sort fail!", (long) pthread_self());
+        psort_error(str);
+    }
+    job->done = true;
+
+    return (void*) 0;
+}
 
 #endif
