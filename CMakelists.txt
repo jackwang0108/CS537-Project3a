@@ -17,3 +17,7 @@ add_executable(
     ${PROJECT_SOURCE_DIR}/psort.c
 )
 
+add_executable(
+    gentest
+    ${PROJECT_SOURCE_DIR}/gentest.c
+)
