@@ -92,7 +92,8 @@ bool _is_little_endian()
  * @date 2022.10.30
  */
 #ifdef DEBUG
-int get_key(record_t record){
+int get_key(record_t record)
+{
     if (NULL == record)
         psort_error("record == NULL, didn't initialize?");
     return *(int *)(*record);
@@ -356,47 +357,74 @@ int quick_sort(record_t records[], int num, bool reverse)
 }
 
 /**
+ * @brief order_merge 给定未排序的原数组和空的新数组，而后将low ~ mid 和 mid ~ high中的值按顺序排列到新数组中
+ *
+ * @param old_records 原数组
+ * @param new_records 新数组
+ * @param num 原数组中record数
+ * @param low low的值
+ * @param mid mid的值
+ * @param high high的值
+ * @param reverse 若为true，则为降序排列，否则为升序排列
+ * @return int 状态码
+ *
+ * @author Shihong Wang
+ * @date 2022.11.3
+ */
+int order_merge(record_t old_records[], record_t new_records[], int num, int low, int mid, int high, bool reverse)
+{
+    int k = low;
+    int start1 = low, end1 = mid;
+    int start2 = mid, end2 = high;
+    while (start1 < end1 && start2 < end2)
+    {
+        if (!reverse)
+            new_records[k++] = less_than(old_records[start1], old_records[start2]) >= 0 ? old_records[start1++] : old_records[start2++];
+        else
+            new_records[k++] = less_than(old_records[start1], old_records[start2]) >= 0 ? old_records[start2++] : old_records[start1++];
+    }
+    while (start1 < end1)
+        new_records[k++] = old_records[start1++];
+    while (start2 < end2)
+        new_records[k++] = old_records[start2++];
+
+    return 0;
+}
+
+/**
  * @brief 归并排序母函数
- * 
+ *
  * @param records record数组
  * @param num record的数量
  * @param reverse 若为true，则按照降序排列，否则按照升序排列
  * @param seg_start 归并排序开始时每组中的记录数
  * @return int 状态码
- * 
+ *
  * @author Shihong Wang
  * @date 2022.11.3
  */
 int _merge_sort(record_t records[], int num, bool reverse, int seg_start)
-{   
+{
     int sign = reverse == true ? -1 : 1;
     record_t *old_records = records;
     record_t *new_records = (record_t *)malloc(sizeof(record_t) * num);
     int seg, start;
-    for (seg = seg_start; seg < num; seg += seg){
-        for (start = 0; start < num; start += seg * 2){
+    for (seg = seg_start; seg < num; seg += seg)
+    {
+        for (start = 0; start < num; start += seg * 2)
+        {
             int low = start, mid = min(start + seg, num), high = min(start + seg * 2, num);
-            int k = low;
-            int start1 = low, end1 = mid;
-            int start2 = mid, end2 = high;
-            while (start1 < end1 && start2 < end2){
-                if (!reverse)
-                    new_records[k++] = less_than(old_records[start1], old_records[start2]) >= 0 ? old_records[start1++] : old_records[start2++];
-                else
-                    new_records[k++] = less_than(old_records[start1], old_records[start2]) >= 0 ? old_records[start2++] : old_records[start1++];
-            }
-            while (start1 < end1)
-                new_records[k++] = old_records[start1++];
-            while (start2 < end2)
-                new_records[k++] = old_records[start2++];
+            order_merge(old_records, new_records, num, low, mid, high, reverse);
         }
 
+        // swap for next sort
         record_t *temp = new_records;
         new_records = old_records;
         old_records = temp;
     }
 
-    if (old_records != records){
+    if (old_records != records)
+    {
         for (int i = 0; i < num; i++)
             new_records[i] = old_records[i];
         new_records = old_records;
@@ -408,33 +436,34 @@ int _merge_sort(record_t records[], int num, bool reverse, int seg_start)
 
 /**
  * @brief 归并排序 wrapper, 为了benchmark
- * 
- * @param records 
- * @param num 
- * @param reverse 
- * @return int 
- * 
+ *
+ * @param records
+ * @param num
+ * @param reverse
+ * @return int
+ *
  * @author Shihong Wang
  * @date 2022.11.3
  */
-int merge_sort(record_t records[], int num, bool reverse){
+int merge_sort(record_t records[], int num, bool reverse)
+{
     return _merge_sort(records, num, reverse, 1);
 }
 
 #define BUBBLE_SORT 0
 #define QUICK_SORT 1
-#define MERGER_SORT 2
+#define MERGE_SORT 2
 
 char *func_name[] = {
     [BUBBLE_SORT] = "bubble_sort",
     [QUICK_SORT] = "quick_sort",
-    [MERGER_SORT] = "merge_sort",
+    [MERGE_SORT] = "merge_sort",
 };
 
 int (*sort_func[])(record_t *, int, bool) = {
     [BUBBLE_SORT] = bubble_sort,
     [QUICK_SORT] = quick_sort,
-    [MERGER_SORT] = merge_sort,
+    [MERGE_SORT] = merge_sort,
 };
 
 typedef struct _sort_job
@@ -608,13 +637,37 @@ void *merge_worker(void *arg)
     while (num_fill <= 1)
         pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
     // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
-    sort_job *job1 = do_get();
-    sort_job *job2 = do_get();
+    sort_job jobs[2] = {*do_get(), *do_get()};
     // 唤醒comsumer
     pthread_cond_signal(&sorted_jobs_cond);
     pthread_mutex_unlock(&sorted_jobs_mutex);
 
     // 归并排序
+    // TODO: 写完归并排序后插入sorted_jobs队列的逻辑
+    sort_job *job = sort_job_init(MERGE_SORT, 0, job[0].num + jobs[1].num, false, NULL);
+
+    record_t *temp_records = (record_t *)malloc(sizeof(record_t) * job->num);
+    job->records = (record_t *)malloc(sizeof(record_t) * job->num);
+    for (int i = 0, ptr = 0; i < 2; i++)
+        for (int j = jobs[i].num; j < 2; j++)
+            temp_records[ptr++] = job[i].records[j];
+    if (order_merge(temp_records, job->records, job->num, 0, jobs[0].num, job->num, jobs[0].reverse))
+        ;
+    psort_error("merge error!");
+    free(temp_records);
+
+
+    // 下面因为要访问共享资源sorted_jobs，所以都是临界区
+    pthread_mutex_lock(&sorted_jobs_mutex);
+    // 等待consumer
+    while (MAX_SORTED_JOBS == num_fill)
+        pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
+    // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
+    do_fill(job);
+    // 唤醒comsumer
+    pthread_cond_signal(&sorted_jobs_cond);
+    pthread_mutex_unlock(&sorted_jobs_mutex);
+    return (void *)0;
 }
 
 #endif
