@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
         pthread_cond_init(&sorted_jobs_cond, NULL);
         pthread_t *thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * sort_thd_num);
 
+        // start sort threads
         int seek = 0;
         int num = 10;
         sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * sort_thd_num);
@@ -74,10 +75,14 @@ int main(int argc, char *argv[])
             seek += num;
         }
 
+        // start merge threads
+        int max_record = 20;
+        pthread_t merge_job;
+        pthread_create(&merge_job, NULL, merge_worker, (void *)&max_record);
+
         for (int j = 0; j < sort_thd_num; j++)
-        {
             pthread_join(thread_pool[j], NULL);
-        }
+        pthread_join(merge_job, NULL);
 
         for (int j = 0; j < sort_thd_num; j++)
         {
@@ -89,19 +94,12 @@ int main(int argc, char *argv[])
             }
             delim;
         }
-
-        int ptr = 0;
-        int sum = jobs[0]->num + jobs[1]->num;
-        record_t *temp = (record_t *)malloc(sizeof(record_t) * sum);
-        record_t *records = (record_t *)malloc(sizeof(record_t) * sum);
-        for (int j = 0; j < 2; j++)
-        {
-            for (int k = 0; k < jobs[j]->num; k++)
-                temp[ptr++] = jobs[j]->records[k];
+        if (PRINTKEY == 1){
+            printf("After Merge:\n");
+            printKeys(sorted_jobs[0]->records, sorted_jobs[0]->num);
+            delim;
         }
-        // _merge_sort(records, sum, false, 10);
-        order_merge(temp, records, sum, 0, jobs[0]->num, sum, false);
-        printKeys(records, sum);
+
 
 #endif
     }
