@@ -529,9 +529,12 @@ sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *fi
     job->seek = seek;
     job->num = num;
     job->reverse = reverse;
-    if (NULL == filename){
+    if (NULL == filename)
+    {
         job->filename = NULL;
-    } else {
+    }
+    else
+    {
         job->filename = (char *)malloc(sizeof(char) * strlen(filename));
         strcpy(job->filename, filename);
     }
@@ -634,75 +637,86 @@ void *sort_worker(void *arg)
 
 /**
  * @brief merge_worker是merge线程执行的函数，每个merge_worker既是消费者，又是生产者
- * 
+ *
  * @param arg 指向int的指针，用于判断是否已经排序完毕，调用前和使用前必须要进行强制类型转换
- * @return void* 
- * 
- * @bug merge=true时候无法调用sort_job_init
- * 
+ * @return void*
+ *
+ * @bug 有死锁
+ *
  * @author Shihong Wang
  * @date 2022.11.4
  */
 void *merge_worker(void *arg)
 {
-    bool merge = true;
-    int max_record = *(int*)arg;
-    sort_job jobs[2];
-    for (int i = 0; i < 2; i++){
+    while (true)
+    {
+        bool merge = true;
+        int max_record = *(int *)arg;
+        sort_job *jobs[2];
+        for (int i = 0; i < 2; i++)
+        {
+            // 下面因为要访问共享资源sorted_jobs，所以都是临界区
+            pthread_mutex_lock(&sorted_jobs_mutex);
+            // 等待producer
+            while (num_fill == 0)
+                pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
+            // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
+            jobs[i] = do_get();
+            // 唤醒comsumer
+            pthread_cond_signal(&sorted_jobs_cond);
+            pthread_mutex_unlock(&sorted_jobs_mutex);
+
+            // 最后一个job
+            if (jobs[i]->num == max_record)
+            {
+                merge = false;
+                break;
+            }
+        }
+
+        // Notes: 不知道为什么，先malloc在free就不会报错，真的不理解为什么，难道是Copy-on-Write机制？真搞不明白
+        sort_job *job = (sort_job *)malloc(sizeof(sort_job) * 1);
+        free(job);
+        if (merge)
+        {
+            // 归并排序
+            int sum = jobs[0]->num + jobs[1]->num;
+            job = sort_job_init(MERGE_SORT, 0, sum, false, (char *)NULL);
+
+            record_t *temp_records = (record_t *)malloc(sizeof(record_t) * job->num);
+            job->records = (record_t *)malloc(sizeof(record_t) * job->num);
+            for (int i = 0, ptr = 0; i < 2; i++)
+            {
+                for (int j = 0; j < jobs[i]->num; j++)
+                    temp_records[ptr++] = jobs[i]->records[j];
+                // release job if job is merged by merge_worker
+                if (jobs[i]->filename == NULL)
+                    sort_job_release(jobs[i]);
+            }
+            if (order_merge(temp_records, job->records, job->num, 0, jobs[0]->num, job->num, jobs[0]->reverse))
+                psort_error("merge error!");
+            free(temp_records);
+        }
+        else
+        {
+            job = jobs[0];
+        }
+
         // 下面因为要访问共享资源sorted_jobs，所以都是临界区
         pthread_mutex_lock(&sorted_jobs_mutex);
-        // 等待producer
-        while (num_fill == 0)
+        // 等待consumer
+        while (MAX_SORTED_JOBS == num_fill)
             pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
-        // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
-        jobs[i] = *do_get();
+        // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
+        do_fill(job);
         // 唤醒comsumer
         pthread_cond_signal(&sorted_jobs_cond);
         pthread_mutex_unlock(&sorted_jobs_mutex);
 
-        // 最后一个job
-        if (jobs[i].num == max_record){
-            merge = false;
+        if (job->num == max_record)
             break;
-        }
     }
 
-    sort_job *job;
-    if (merge){
-        // 归并排序
-        sort_job *(*p)(int, int, int, bool, char*) = sort_job_init;
-        // job = sort_job_init(MERGE_SORT, 0, job[0].num + jobs[1].num, false, (char*) NULL);
-        // TODO: fix EXC_BAD_ACCESS 问题
-        job = p(MERGE_SORT, 0, job[0].num + jobs[1].num, false, (char*) NULL);
-
-        record_t *temp_records = (record_t *)malloc(sizeof(record_t) * job->num);
-        job->records = (record_t *)malloc(sizeof(record_t) * job->num);
-        for (int i = 0, ptr = 0; i < 2; i++){
-            for (int j = jobs[i].num; j < 2; j++)
-                temp_records[ptr++] = job[i].records[j];
-            // release job if job is merged by merge_worker
-            if (jobs[i].filename == NULL)
-                sort_job_release(&jobs[i]);
-        }
-        if (order_merge(temp_records, job->records, job->num, 0, jobs[0].num, job->num, jobs[0].reverse))
-            ;
-        psort_error("merge error!");
-        free(temp_records);
-    } else {
-        job = &jobs[0];
-    }
-
-
-    // 下面因为要访问共享资源sorted_jobs，所以都是临界区
-    pthread_mutex_lock(&sorted_jobs_mutex);
-    // 等待consumer
-    while (MAX_SORTED_JOBS == num_fill)
-        pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
-    // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
-    do_fill(job);
-    // 唤醒comsumer
-    pthread_cond_signal(&sorted_jobs_cond);
-    pthread_mutex_unlock(&sorted_jobs_mutex);
     return (void *)0;
 }
 

@@ -59,10 +59,15 @@ int main(int argc, char *argv[])
 
 #ifdef MAIN
         // Code for parallel sort
-        int sort_thd_num = infer_thread_num() + 1;
+
+        int max_record = 40;
+        int sort_thd_num = infer_thread_num() + 3;
+        int merge_thd_num = infer_thread_num();
+
+        // init mutual exclusion (Muttex) and conditional variable (cv)
         pthread_mutex_init(&sorted_jobs_mutex, NULL);
         pthread_cond_init(&sorted_jobs_cond, NULL);
-        pthread_t *thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * sort_thd_num);
+        pthread_t *sort_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * sort_thd_num);
 
         // start sort threads
         int seek = 0;
@@ -71,18 +76,19 @@ int main(int argc, char *argv[])
         for (int j = 0; j < sort_thd_num; j++)
         {
             jobs[j] = sort_job_init(QUICK_SORT, seek, num, false, argv[i]);
-            pthread_create(&thread_pool[j], NULL, sort_worker, (void *)jobs[j]);
+            pthread_create(&sort_thread_pool[j], NULL, sort_worker, (void *)jobs[j]);
             seek += num;
         }
 
         // start merge threads
-        int max_record = 20;
-        pthread_t merge_job;
-        pthread_create(&merge_job, NULL, merge_worker, (void *)&max_record);
+        pthread_t *merge_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * merge_thd_num);
+        for (int j = 0; j < merge_thd_num; j++)
+            pthread_create(&merge_thread_pool[j], NULL, merge_worker, (void *)&max_record);
 
         for (int j = 0; j < sort_thd_num; j++)
-            pthread_join(thread_pool[j], NULL);
-        pthread_join(merge_job, NULL);
+            pthread_join(sort_thread_pool[j], NULL);
+        for (int j = 0; j < merge_thd_num; j++)
+            pthread_join(merge_thread_pool[j], NULL);
 
         for (int j = 0; j < sort_thd_num; j++)
         {
