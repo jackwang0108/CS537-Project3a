@@ -1,0 +1,28 @@
+project(CS537-Project3A)
+
+set(
+    CMAKE_C_STANDARD 99
+)
+
+set(
+    EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin
+)
+
+set(
+    LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib
+)
+
+add_executable(
+    psort
+    ${PROJECT_SOURCE_DIR}/psort.c
+)
+
+target_link_libraries(
+    psort
+    pthread
+)
+
+add_executable(
+    gentest
+    ${PROJECT_SOURCE_DIR}/gentest.c
+)
