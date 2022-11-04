@@ -135,6 +135,46 @@ source: https://piazza.com/class/l7kt5onxp5h4hp/post/1283
 
 https://piazza.com/class/l7kt5onxp5h4hp/post/1283
 
+
+
+### 5. Little-endian Byte Ordering
+
+> **Hexdump and int read not same! p3a**
+>
+> Hi, I created a binary file from code in a piazza post of size 4 bytes. I just wanted to see if i get an int from these bytes. I used the hexdump linux function and got this:
+>
+> ![image.png](https://piazza.com/redirect/s3?bucket=uploads&prefix=paste%2Fkeij2x759i79y%2F4a9dc5766721994041051c7a62c2799b1a4761133e1e05f336ab95e3cc6b2930%2Fimage.png)
+>
+> which is
+>
+> ![image.png](https://piazza.com/redirect/s3?bucket=uploads&prefix=paste%2Fkeij2x759i79y%2F11819789cf77118b0bbffd024b7248af6b1d7de91a496baf8c8efceac586ee98%2Fimage.png)
+>
+>  in integer. Now, I used my code to read in the same file but read it as an int:
+>
+> ![image.png](https://piazza.com/redirect/s3?bucket=uploads&prefix=paste%2Fkeij2x759i79y%2Ffae450a5aa35d85f9590fee997b56ba481204b4cb8915b99a1cd3d721d56965c%2Fimage.png)
+>
+> For reference, fread (pointer to store info, size of each item, number of items, file pointer) is the syntax.
+>
+> The output I got was:
+>
+> ![image.png](https://piazza.com/redirect/s3?bucket=uploads&prefix=paste%2Fkeij2x759i79y%2Fb6e8a19d035538ba75146f4b7e76222b82da7dcced18b854e5aaa3da1dc56a87%2Fimage.png)
+>
+> Why are the two ints not the same?
+>
+> P.S. Someone please create a folder on Piazza for p3a so I can appropriately add the flair.
+>
+> **the instructors' answer**
+>
+> If you convert 1826852556 to hex, you will get 6CE38ECC.
+>
+> Does 6CE38ECC look familiar? 
+>
+> x86 processors use little-endian byte ordering, so what you see is different than what the machine sees
+>
+> I have created a folder for p3a, thanks for reminding 
+
+source: https://piazza.com/class/l7kt5onxp5h4hp/post/1248
+
 ## Project Instuctions (from website)
 
 ### Important Dates and Other Stuff
