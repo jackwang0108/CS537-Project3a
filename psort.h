@@ -641,7 +641,8 @@ void *sort_worker(void *arg)
  * @param arg 指向int的指针，用于判断是否已经排序完毕，调用前和使用前必须要进行强制类型转换
  * @return void*
  *
- * @bug 有死锁
+ * @bug 有的时候会发生死锁，概率 < 10%，我跑下来40次，3次死锁
+ * @bug 最后一组merge失败
  *
  * @author Shihong Wang
  * @date 2022.11.4
