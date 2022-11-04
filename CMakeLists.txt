@@ -17,6 +17,11 @@ add_executable(
     ${PROJECT_SOURCE_DIR}/psort.c
 )
 
+target_link_libraries(
+    psort
+    pthread
+)
+
 add_executable(
     gentest
     ${PROJECT_SOURCE_DIR}/gentest.c
