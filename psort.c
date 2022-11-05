@@ -113,7 +113,6 @@ int main(int argc, char *argv[])
             // 等待producer
             while (is_empty())
                 pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
-            // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
             sort_job* done_job = do_get();
             // 唤醒consumer
             pthread_cond_signal(&sorted_jobs_cond);

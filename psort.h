@@ -662,7 +662,10 @@ void *sort_worker(void *arg)
  *          则此时由于sorted_jobs已经被填充满，故此时merge_worker等待consumer消耗sorted_jobs
  *          由于只有一个merge_worker，故此时就会卡在这里
  *      该bug最简单的修复方式是满足：sort_worker_thd + merge_worker_thd < max_sorted_jobs
- * @bug merge可能会失败
+ * 
+ * @bug 多个sort_worker，一个merge_worker，下述情况会发生死锁:
+ *          merge_worker在取完了sorted_job后，就从消费者变成了生产者，若此时有别的sort_worker填满了sorted_jobs
+ *          后仍有sort_worker尝试do_fill，就会造成只有生产者而没有消费者的情况，此时merge_worker和sort_worker都会因为cv卡住
  *
  * @author Shihong Wang
  * @date 2022.11.4
