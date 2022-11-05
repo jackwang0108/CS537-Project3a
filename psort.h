@@ -15,14 +15,16 @@
 #define DEBUG
 
 #define MAX_CHAR 50
-#define MAX_THREAD 1
 #define SORT_SUCCESS 0
 #define SORT_FAILURE 1
 #define BYTE_PER_RECORD 100
-#define MAX_SORTED_JOBS 2
+#define RECORD_PER_THREAD 10
+#define MAX_SORTED_JOBS 6
 
 #ifndef DEBUG
 #define get_key(record) *(int *)(*record)
+#define is_empty() return front == rear
+#define is_full() return (rear + 1) % MAX_SORTED_JOBS == front
 #endif
 #define psort_error(s) _psort_error(s, __LINE__)
 #define min(a, b) (a < b ? a : b)
@@ -60,24 +62,6 @@ void _psort_error(char *str, int lineno)
 
     printf("%s\n", str_c);
     exit(EXIT_FAILURE);
-}
-
-/**
- * @brief _is_little_endian用于测试系统是否是小端序
- *
- * @return true 系统是小端序
- * @return false 系统不是小端序
- *
- * @author: Shihong Wang
- * @date: 2022.10.30
- */
-bool _is_little_endian()
-{
-    int i = 1;
-    char *a = (char *)&i;
-    if (*a == 1)
-        return 1;
-    return 0;
 }
 
 /**
@@ -179,7 +163,7 @@ int read_records(char *filename, byteStream *buffer, int seek, int num)
     if (num < 0)
     {
         fseek(bin_file, 0L, 2);
-        byte = ftell(bin_file);
+        byte = (int)ftell(bin_file);
     }
     fseek(bin_file, (long)(seek * BYTE_PER_RECORD), 0);
 
@@ -341,7 +325,7 @@ int _quick_sort(record_t records[], int low, int high, bool reverse)
 }
 
 /**
- * @brief 快速排序 warpper，为了benchmark
+ * @brief 快速排序 wrapper，为了benchmark
  *
  * @param records record数组
  * @param num record的数量
@@ -351,6 +335,7 @@ int _quick_sort(record_t records[], int low, int high, bool reverse)
  * @author Shihong Wang
  * @date 2022.10.31
  */
+// Attention: 目前quick_sort运行明显慢于merge_sort，怀疑是递归版本的速度太慢了，后续改成循环版本
 int quick_sort(record_t records[], int num, bool reverse)
 {
     return _quick_sort(records, 0, num - 1, reverse);
@@ -466,6 +451,20 @@ int (*sort_func[])(record_t *, int, bool) = {
     [MERGE_SORT] = merge_sort,
 };
 
+/**
+ * @brief infer_thread_num 用于推断需要多少个线程进行排序
+ *
+ * @param byte 二进制文件字节数
+ * @return int 需要的线程数量
+ *
+ * @author Shihong Wang
+ * @date 2022.11.2
+ */
+int infer_thread_num(int byte)
+{
+    return byte / (RECORD_PER_THREAD * BYTE_PER_RECORD);
+}
+
 typedef struct _sort_job
 {
     // Notes: init 必须指定
@@ -480,34 +479,6 @@ typedef struct _sort_job
     record_t *records;
     byteStream buffer;
 } sort_job;
-
-/**
- * @brief sorted_jobs是多个producer和多个consumer共享的数据，需要有一个互斥锁保证单独访问
- *
- * @brief sorted_jobs_mutex是sorted_jobs的锁
- *
- * @brief 此外，因为sorted_job可能满，也可能空，所以需要一个conditional variable来在producer和consumer之间相互通知
- */
-int num_fill = 0;
-int useptr = 0;
-int fillptr = 0;
-sort_job *sorted_jobs[MAX_SORTED_JOBS];
-pthread_cond_t sorted_jobs_cond;
-pthread_mutex_t sorted_jobs_mutex;
-
-/**
- * @brief infer_thread_num 用于推断需要多少个线程进行排序
- *
- * @return int 需要的线程数量
- *
- * @author Shihong Wang
- * @date 2022.11.2
- */
-// TODO 写完这个函数
-int infer_thread_num()
-{
-    return MAX_THREAD;
-}
 
 /**
  * @brief sort_job结构体的初始化函数
@@ -560,6 +531,21 @@ int sort_job_release(sort_job *job)
 }
 
 /**
+ * @brief sorted_jobs是多个producer和多个consumer共享的数据，需要有一个互斥锁保证单独访问
+ *
+ * @brief sorted_jobs_mutex是sorted_jobs的锁
+ *
+ * @brief 此外，因为sorted_job可能满，也可能空，所以需要一个conditional variable来在producer和consumer之间相互通知
+ */
+int num_fill = 0;
+int front = 0;
+int rear = 0;
+// sort_job *sorted_jobs[MAX_SORTED_JOBS];
+sort_job **sorted_jobs;
+pthread_cond_t sorted_jobs_cond;
+pthread_mutex_t sorted_jobs_mutex;
+
+/**
  * @brief do_fill用于把sorted之后的job放入sorted_jobs队列中
  *
  * @param sorted_job 指向sorted_job的指针
@@ -569,8 +555,8 @@ int sort_job_release(sort_job *job)
  */
 void do_fill(sort_job *sorted_job)
 {
-    sorted_jobs[fillptr] = sorted_job;
-    fillptr = (fillptr + 1) % MAX_SORTED_JOBS;
+    sorted_jobs[rear] = sorted_job;
+    rear = (rear + 1) % MAX_SORTED_JOBS;
     num_fill++;
 }
 
@@ -584,11 +570,23 @@ void do_fill(sort_job *sorted_job)
  */
 sort_job *do_get()
 {
-    sort_job *temp = sorted_jobs[useptr];
-    useptr = (useptr + 1) % MAX_SORTED_JOBS;
+    sort_job *temp = sorted_jobs[front];
+    front = (front + 1) % MAX_SORTED_JOBS;
     num_fill--;
     return temp;
 }
+
+#ifdef DEBUG
+bool is_full()
+{
+    return (rear + 1) % MAX_SORTED_JOBS == front;
+}
+
+bool is_empty()
+{
+    return front == rear;
+}
+#endif
 
 /**
  * @brief sort_worker是排序线程执行的函数，每个sort_worker都是一个producer(产品放在sorted_queue中)
@@ -624,11 +622,11 @@ void *sort_worker(void *arg)
     // 下面因为要访问共享资源sorted_jobs，所以都是临界区
     pthread_mutex_lock(&sorted_jobs_mutex);
     // 等待consumer
-    while (MAX_SORTED_JOBS == num_fill)
+    while (is_full())
         pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
     // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
     do_fill(job);
-    // 唤醒comsumer
+    // 唤醒consumer
     pthread_cond_signal(&sorted_jobs_cond);
     pthread_mutex_unlock(&sorted_jobs_mutex);
 
@@ -641,8 +639,12 @@ void *sort_worker(void *arg)
  * @param arg 指向int的指针，用于判断是否已经排序完毕，调用前和使用前必须要进行强制类型转换
  * @return void*
  *
- * @bug 有的时候会发生死锁，概率 < 10%，我跑下来40次，3次死锁
- * @bug 最后一组merge失败
+ * @bug 多个sort_worker，一个merge_worker，下述情况会发生死锁:
+ *          merge_worker正在merge，而sorted_jobs已经全部运行完，并且填充满sorted_jobs，
+ *          则此时由于sorted_jobs已经被填充满，故此时merge_worker等待consumer消耗sorted_jobs
+ *          由于只有一个merge_worker，故此时就会卡在这里
+ *      该bug最简单的修复方式是满足：sort_worker_thd + merge_worker_thd < max_sorted_jobs
+ * @bug merge可能会失败
  *
  * @author Shihong Wang
  * @date 2022.11.4
@@ -659,11 +661,11 @@ void *merge_worker(void *arg)
             // 下面因为要访问共享资源sorted_jobs，所以都是临界区
             pthread_mutex_lock(&sorted_jobs_mutex);
             // 等待producer
-            while (num_fill == 0)
+            while (is_empty())
                 pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
             // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
             jobs[i] = do_get();
-            // 唤醒comsumer
+            // 唤醒consumer
             pthread_cond_signal(&sorted_jobs_cond);
             pthread_mutex_unlock(&sorted_jobs_mutex);
 
@@ -687,30 +689,28 @@ void *merge_worker(void *arg)
             record_t *temp_records = (record_t *)malloc(sizeof(record_t) * job->num);
             job->records = (record_t *)malloc(sizeof(record_t) * job->num);
             for (int i = 0, ptr = 0; i < 2; i++)
-            {
                 for (int j = 0; j < jobs[i]->num; j++)
                     temp_records[ptr++] = jobs[i]->records[j];
-                // release job if job is merged by merge_worker
-                if (jobs[i]->filename == NULL)
-                    sort_job_release(jobs[i]);
-            }
             if (order_merge(temp_records, job->records, job->num, 0, jobs[0]->num, job->num, jobs[0]->reverse))
                 psort_error("merge error!");
+            // release job if job is merged by merge_worker
+            for (int i = 0; i < 2; i++)
+                if (jobs[i]->filename == NULL)
+                    sort_job_release(jobs[i]);
             free(temp_records);
         }
         else
-        {
             job = jobs[0];
-        }
 
         // 下面因为要访问共享资源sorted_jobs，所以都是临界区
         pthread_mutex_lock(&sorted_jobs_mutex);
+        // Attention: 如果sorted_jobs已满(其他sort_worker/merge_worker线程填充)，且只有一个consumer，则此时会有卡住，所以要保证sorted_job有足够的容量，即sort_thread + merge_thread < sorted_job
         // 等待consumer
-        while (MAX_SORTED_JOBS == num_fill)
+        while (is_full())
             pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
         // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
         do_fill(job);
-        // 唤醒comsumer
+        // 唤醒consumer
         pthread_cond_signal(&sorted_jobs_cond);
         pthread_mutex_unlock(&sorted_jobs_mutex);
 

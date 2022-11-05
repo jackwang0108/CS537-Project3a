@@ -30,15 +30,15 @@ int main(int argc, char *argv[])
     byteStream buffer;
     for (int i = 1; i < argc; i++)
     {
+
+#ifdef BENCHMARK
+        // Code for benchmark
         clock_t start, end;
 
         int byte = read_records(argv[i], &buffer, 0, -1);
         printf("Test file: %s\n", argv[i]);
         printf("%s -> %d bytes\n", argv[i], byte);
         delim;
-
-#ifdef BENCHMARK
-        // Code for benchmark
         record_t *records;
         int num = parse_records(buffer, &records, byte);
         for (int j = 0; j < sizeof(sort_func) / sizeof(sort_func[0]); j++)
@@ -59,23 +59,29 @@ int main(int argc, char *argv[])
 
 #ifdef MAIN
         // Code for parallel sort
+        int byte = read_records(argv[i], &buffer, 0, -1);
+        printf("Test file: %s\n", argv[i]);
+        printf("%s -> %d bytes\n", argv[i], byte);
+        delim;
 
-        int max_record = 40;
-        int sort_thd_num = infer_thread_num() + 3;
-        int merge_thd_num = infer_thread_num();
+        int max_record = byte / BYTE_PER_RECORD;
+        int sort_thd_num = infer_thread_num(byte);
+        int merge_thd_num = 1;
+        // int merge_thd_num = sort_thd_num / 2;
+        sorted_jobs = (sort_job**)malloc(sizeof(sort_job*) * (sort_thd_num + merge_thd_num + 1));
 
-        // init mutual exclusion (Muttex) and conditional variable (cv)
+        // init mutual exclusion (Mutex) and conditional variable (cv)
         pthread_mutex_init(&sorted_jobs_mutex, NULL);
         pthread_cond_init(&sorted_jobs_cond, NULL);
         pthread_t *sort_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * sort_thd_num);
 
         // start sort threads
         int seek = 0;
-        int num = 10;
+        int num = RECORD_PER_THREAD;
         sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * sort_thd_num);
         for (int j = 0; j < sort_thd_num; j++)
         {
-            jobs[j] = sort_job_init(QUICK_SORT, seek, num, false, argv[i]);
+            jobs[j] = sort_job_init(MERGE_SORT, seek, num, false, argv[i]);
             pthread_create(&sort_thread_pool[j], NULL, sort_worker, (void *)jobs[j]);
             seek += num;
         }
@@ -101,8 +107,18 @@ int main(int argc, char *argv[])
             delim;
         }
         if (PRINTKEY == 1){
-            printf("After Merge:\n");
-            printKeys(sorted_jobs[0]->records, sorted_jobs[0]->num);
+            printf("Main, After Merge:\n");
+            // 下面因为要访问共享资源sorted_jobs，所以都是临界区
+            pthread_mutex_lock(&sorted_jobs_mutex);
+            // 等待producer
+            while (is_empty())
+                pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
+            // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
+            sort_job* done_job = do_get();
+            // 唤醒consumer
+            pthread_cond_signal(&sorted_jobs_cond);
+            pthread_mutex_unlock(&sorted_jobs_mutex);
+            printKeys(done_job->records, done_job->num);
             delim;
         }
 
