@@ -651,6 +651,23 @@ void *sort_worker(void *arg)
     return (void *)0;
 }
 
+void *append_worker(void *arg){
+    sort_job *job = (sort_job*) arg;
+    // 下面因为要访问共享资源sorted_jobs，所以都是临界区
+    pthread_mutex_lock(&sorted_jobs_mutex);
+    // Attention: 如果sorted_jobs已满(其他sort_worker/merge_worker线程填充)，且只有一个consumer，则此时会有卡住，所以要保证sorted_job有足够的容量，即sorted_job < sort_thread + merge_thread
+    // 等待consumer
+    while (is_full())
+        pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
+    // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
+    do_fill(job);
+    // 唤醒consumer
+    pthread_cond_signal(&sorted_jobs_cond);
+    pthread_mutex_unlock(&sorted_jobs_mutex);
+
+    return (void*)0;
+}
+
 /**
  * @brief merge_worker是merge线程执行的函数，每个merge_worker既是消费者，又是生产者
  *
@@ -666,6 +683,7 @@ void *sort_worker(void *arg)
  * @bug 多个sort_worker，一个merge_worker，下述情况会发生死锁:
  *          merge_worker在取完了sorted_job后，就从消费者变成了生产者，若此时有别的sort_worker填满了sorted_jobs
  *          后仍有sort_worker尝试do_fill，就会造成只有生产者而没有消费者的情况，此时merge_worker和sort_worker都会因为cv卡住
+ *      该bug的修复方式就是将merge_worker拆分为sort_worker，重新插入的工作交给append_worker处理（子线程）
  *
  * @author Shihong Wang
  * @date 2022.11.4
@@ -723,17 +741,9 @@ void *merge_worker(void *arg)
         else
             job = jobs[0];
 
-        // 下面因为要访问共享资源sorted_jobs，所以都是临界区
-        pthread_mutex_lock(&sorted_jobs_mutex);
-        // Attention: 如果sorted_jobs已满(其他sort_worker/merge_worker线程填充)，且只有一个consumer，则此时会有卡住，所以要保证sorted_job有足够的容量，即sorted_job < sort_thread + merge_thread
-        // 等待consumer
-        while (is_full())
-            pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
-        // 排序完当前job后，把job放入sorted_jobs_queue中，等待merger_worker处理，所以sort_worker就是producer
-        do_fill(job);
-        // 唤醒consumer
-        pthread_cond_signal(&sorted_jobs_cond);
-        pthread_mutex_unlock(&sorted_jobs_mutex);
+        // 将新的job插入到循环队列尾
+        pthread_t append_thd;
+        pthread_create(&append_thd, NULL, append_worker, (void *)job);
 
         if (job->num == max_record)
             break;
