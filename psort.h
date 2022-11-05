@@ -669,7 +669,7 @@ void *append_worker(void *arg){
 }
 
 /**
- * @brief merge_worker是merge线程执行的函数，每个merge_worker既是消费者，又是生产者
+ * @brief merge_worker是merge线程执行的函数，每个merge_worker是消费者
  *
  * @param arg 指向int的指针，用于判断是否已经排序完毕，调用前和使用前必须要进行强制类型转换
  * @return void*
@@ -684,6 +684,9 @@ void *append_worker(void *arg){
  *          merge_worker在取完了sorted_job后，就从消费者变成了生产者，若此时有别的sort_worker填满了sorted_jobs
  *          后仍有sort_worker尝试do_fill，就会造成只有生产者而没有消费者的情况，此时merge_worker和sort_worker都会因为cv卡住
  *      该bug的修复方式就是将merge_worker拆分为sort_worker，重新插入的工作交给append_worker处理（子线程）
+ * 
+ * @todo fix bug #3
+ * @bug 多个sort_worker，多个merge_worker，会发生死锁
  *
  * @author Shihong Wang
  * @date 2022.11.4

@@ -12,9 +12,11 @@ Professor Remzi just release the Project instructions.
 
 The discussion from piazza make it clear that what shold the test file be like, and how to sort each record. So, a shell generates the test file is created.
 
-### 2022.10.4: Finished Parallel Sort Frame
+### 2022.10.4: Finished Parallel Sort Version 1
 
-多线程debug很他妈痛苦，一个bug修了一天
+Parallel Sort Version 1: multiple sort_worker v.s. single merge_worker
+
+PS: 多线程debug很他妈痛苦，一个bug修了一天
 
 ## How to develop
 
