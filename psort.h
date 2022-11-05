@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <inttypes.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -65,6 +66,22 @@ void _psort_error(char *str, int lineno)
 }
 
 /**
+ * @brief _is_little_endian用于测试系统是否是小端序
+ *
+ * @return true 系统是小端序
+ * @return false 系统不是小端序
+ *
+ * @author: Shihong Wang
+ * @date: 2022.10.30
+ */
+bool _is_little_endian()
+{
+    volatile uint32_t i=0x01234567;
+    // return 0 for big endian, 1 for little endian.
+    return (*((uint8_t*)(&i))) == 0x67;
+}
+
+/**
  * @brief get_key 从给定的record中读取key（前四个字节拼接得到的signed int）
  *
  * @param record 需要读取key的record
@@ -104,7 +121,7 @@ int get_key(record_t record)
 char *byte2char(const byteStream buffer, int len)
 {
     int pos = 0;
-    bool little_endian = _is_little_endian();
+    bool little_endian = !_is_little_endian();
     char *str = (char *)malloc(sizeof(char) * len * 2);
     if (NULL == str)
         psort_error("malloc fail");
@@ -163,7 +180,7 @@ int read_records(char *filename, byteStream *buffer, int seek, int num)
     if (num < 0)
     {
         fseek(bin_file, 0L, 2);
-        byte = (int)ftell(bin_file);
+        byte = (int) ftell(bin_file);
     }
     fseek(bin_file, (long)(seek * BYTE_PER_RECORD), 0);
 
@@ -451,6 +468,7 @@ int (*sort_func[])(record_t *, int, bool) = {
     [MERGE_SORT] = merge_sort,
 };
 
+
 /**
  * @brief infer_thread_num 用于推断需要多少个线程进行排序
  *
@@ -479,6 +497,7 @@ typedef struct _sort_job
     record_t *records;
     byteStream buffer;
 } sort_job;
+
 
 /**
  * @brief sort_job结构体的初始化函数
@@ -545,6 +564,7 @@ sort_job **sorted_jobs;
 pthread_cond_t sorted_jobs_cond;
 pthread_mutex_t sorted_jobs_mutex;
 
+
 /**
  * @brief do_fill用于把sorted之后的job放入sorted_jobs队列中
  *
@@ -577,13 +597,11 @@ sort_job *do_get()
 }
 
 #ifdef DEBUG
-bool is_full()
-{
+bool is_full(){
     return (rear + 1) % MAX_SORTED_JOBS == front;
 }
 
-bool is_empty()
-{
+bool is_empty(){
     return front == rear;
 }
 #endif
@@ -704,7 +722,7 @@ void *merge_worker(void *arg)
 
         // 下面因为要访问共享资源sorted_jobs，所以都是临界区
         pthread_mutex_lock(&sorted_jobs_mutex);
-        // Attention: 如果sorted_jobs已满(其他sort_worker/merge_worker线程填充)，且只有一个consumer，则此时会有卡住，所以要保证sorted_job有足够的容量，即sort_thread + merge_thread < sorted_job
+        // Attention: 如果sorted_jobs已满(其他sort_worker/merge_worker线程填充)，且只有一个consumer，则此时会有卡住，所以要保证sorted_job有足够的容量，即sorted_job < sort_thread + merge_thread
         // 等待consumer
         while (is_full())
             pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
