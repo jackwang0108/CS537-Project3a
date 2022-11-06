@@ -14,7 +14,7 @@ endif(COMMAND cmake_policy)
 
 add_library(
     ppsort STATIC
-    ${PROJECT_SOURCE_DIR}/psort.c
+    ${PROJECT_SOURCE_DIR}/libpsort.c
 )
 
 include_directories(${PROJECT_SOURCE_DIR})
