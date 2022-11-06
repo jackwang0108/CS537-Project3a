@@ -12,11 +12,19 @@ Professor Remzi just release the Project instructions.
 
 The discussion from piazza make it clear that what shold the test file be like, and how to sort each record. So, a shell generates the test file is created.
 
-### 2022.10.4: Finished Parallel Sort Version 1
+### 2022.11.4: Finished Parallel Sort Version 1
 
 Parallel Sort Version 1: multiple sort_worker v.s. single merge_worker
 
 PS: 多线程debug很他妈痛苦，一个bug修了一天
+
+### 2022.11.5: Finished Parallel Sort Version 2
+
+Paraller Sort Version 2: multiple sort_worker v.s. multiple merge_worker
+
+PS: 遇到了哲学家进餐问题
+
+TODO: 支持大文件，目前最多对2G的文件(20,000,000)的文件进行排序，后续需要使用mmap和stat来实现读写大文件
 
 ## How to develop
 
