@@ -67,3 +67,5 @@ cmake-build-debug
 result.txt
 
 psort.c
+
+result
