@@ -14,5 +14,5 @@ if [ $# -eq 1 ]; then
     "$shell_folder"/../bin/gentest "$1" "$shell_folder"/../test.bin
 else
     echo "Writing 10 records to test.bin..."
-    "$shell_folder"/../bin/gentest 10 "$shell_folder"/test.bin
+    "$shell_folder"/../bin/gentest 10 "$shell_folder"/../test.bin
 fi
