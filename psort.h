@@ -688,12 +688,12 @@ typedef struct _merge_arg{
  *          merge_worker正在merge，而sorted_jobs已经全部运行完，并且填充满sorted_jobs，
  *          则此时由于sorted_jobs已经被填充满，故此时merge_worker等待consumer消耗sorted_jobs
  *          由于只有一个merge_worker，故此时就会卡在这里
- *      该bug最简单的修复方式是满足：sort_worker_thd + merge_worker_thd < max_sorted_jobs
+ *      该bug修复方式是满足：sort_worker_thd + merge_worker_thd < max_sorted_jobs
  * 
  * @bug #2 多个sort_worker，一个merge_worker，下述情况会发生死锁:
  *          merge_worker在取完了sorted_job后，就从消费者变成了生产者，若此时有别的sort_worker填满了sorted_jobs
  *          后仍有sort_worker尝试do_fill，就会造成只有生产者而没有消费者的情况，此时merge_worker和sort_worker都会因为cv卡住
- *      该bug的修复方式就是将merge_worker拆分为sort_worker，重新插入的工作交给append_worker处理（子线程）
+ *      该bug的修复方式就是将merge_worker拆分为sort_worker，重新插入的工作交给append_worker处理（子线程），以保证merge_worker不会等待
  * 
  * @todo fix bug #3
  * @bug #3 多个sort_worker，多个merge_worker，会发生死锁:
