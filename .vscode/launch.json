@@ -24,7 +24,42 @@
             "environment": [],
             //macOS的特定配置
             "osx": {
-                // "miDebuggerPath": "/Applications/Xcode.app/Contents/ Developer/usr/bin/lldb-mi", //修改使用的lldb-mi，一般不需要修改
+                //指定使用lldb进行调试
+                "MIMode": "lldb",
+                // 使用外部终端
+                "externalConsole": true,
+            },
+            //linux的特定配置
+            "linux": {
+                //指定使用gdb调试
+                "MIMode": "gdb",
+                "setupCommands": [
+                    {
+                        "description": "Enable pretty-printing for gdb",
+                        "text": "-enable-pretty-printing",
+                        "ignoreFailures": true
+                    }
+                ]
+            },
+            //windows的特定配置
+            "windows": {
+                //指定使用msvc进行调试
+                "type": "cppdbg",
+                //指定C/C++程序位置
+                "program": "${workspaceFolder}/build/${workspaceFolderBasename}.exe",
+            }
+        },
+        {
+            //名称
+            "name": "Attach Debug",
+            //调试类型，除使用msvc进行调试外，均为该类型
+            "type": "cppdbg",
+            "request": "attach",
+            //指定C/C++程序位置
+            "program": "${workspaceFolder}/bin/${input:executable}",
+            //指定工作目录
+            "processId":"${command:pickProcess}",
+            "osx": {
                 //指定使用lldb进行调试
                 "MIMode": "lldb",
                 // 使用外部终端
