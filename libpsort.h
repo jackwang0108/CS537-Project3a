@@ -19,8 +19,18 @@
 #define SORT_SUCCESS 0
 #define SORT_FAILURE 1
 #define BYTE_PER_RECORD 100
-#define RECORD_PER_THREAD 10000
+#define SORT_THREAD_NUM 8
 #define MAX_SORTED_JOBS 6
+
+typedef struct _config{
+    int sort_thread_num;
+    int merge_thread_num;
+    int record_num;
+    int sorted_job_num;
+    int record_per_thread;
+} config;
+extern config run_config;
+void init_config();
 
 #define psort_error(s) _psort_error(s, __LINE__)
 #define min(a, b) (a < b ? a : b)
@@ -80,11 +90,6 @@ sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *fi
 int sort_job_release(sort_job *job);
 
 
-typedef struct _merge_arg{
-    int max_record;
-    bool timeout;
-}merge_arg;
-
 /**
  * @brief sorted_jobs是多个producer和多个consumer共享的数据，需要有一个互斥锁保证单独访问
  *
@@ -102,7 +107,6 @@ pthread_mutex_t sorted_jobs_mutex;
 static inline bool is_full();
 static inline bool is_empty();
 static inline bool get_num();
-int infer_thread_num(int byte);
 void do_fill(sort_job *sorted_job);
 sort_job *do_get();
 void *sort_worker(void *arg);

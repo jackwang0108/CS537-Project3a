@@ -22,7 +22,7 @@
 
 // #define BENCHMARK
 #define MAIN
-#define PRINTKEY 1
+#define PRINTKEY 0
 
 int main(int argc, char *argv[])
 {
@@ -59,50 +59,54 @@ int main(int argc, char *argv[])
 
 #ifdef MAIN
         // Code for parallel sort
+        struct timezone tz;
+        struct timeval start, end;
+        gettimeofday(&start, &tz);
+
         int byte = read_records(argv[i], &buffer, 0, -1);
         printf("Test file: %s\n", argv[i]);
         printf("%s -> %d bytes\n", argv[i], byte);
         delim;
 
-        int max_record = byte / BYTE_PER_RECORD;
-        int sort_thd_num = infer_thread_num(byte);
-        // int merge_thd_num = 3;
-        int merge_thd_num = sort_thd_num / 4;
-        sorted_jobs = (sort_job**)malloc(sizeof(sort_job*) * (sort_thd_num + merge_thd_num + 1));
-
-        // init mutual exclusion (Mutex) and conditional variable (cv)
+        // init all
+        init_config(byte);
         pthread_mutex_init(&sorted_jobs_mutex, NULL);
         pthread_cond_init(&sorted_jobs_cond, NULL);
-        pthread_t *sort_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * sort_thd_num);
+        sorted_jobs = (sort_job**)malloc(sizeof(sort_job*) * (run_config.sorted_job_num));
+        pthread_t *sort_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * run_config.sort_thread_num);
 
         // start sort threads
         int seek = 0;
-        int num = RECORD_PER_THREAD;
-        sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * sort_thd_num);
-        for (int j = 0; j < sort_thd_num; j++)
+        int record_left = run_config.record_num;
+        sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * run_config.sort_thread_num);
+        for (int j = 0; j < run_config.sort_thread_num; j++)
         {
+            int num = run_config.record_per_thread;
+            if (record_left < run_config.record_per_thread)
+                num = -1;
             jobs[j] = sort_job_init(MERGE_SORT, seek, num, false, argv[i]);
             pthread_create(&sort_thread_pool[j], NULL, sort_worker, (void *)jobs[j]);
             seek += num;
+            record_left -= num;
         }
 
         // start merge threads
-        merge_arg wait_arg = {max_record, false};
-        merge_arg timeout_arg = {max_record, true};
-        pthread_t *merge_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * merge_thd_num);
-        for (int j = 0; j < merge_thd_num; j++)
+        bool wait_arg = true;
+        bool timeout_arg = false;
+        pthread_t *merge_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * run_config.merge_thread_num);
+        for (int j = 0; j < run_config.merge_thread_num; j++)
             if (j == 0)
                 pthread_create(&merge_thread_pool[j], NULL, merge_worker, (void *)&wait_arg);
             else
                 pthread_create(&merge_thread_pool[j], NULL, merge_worker, (void *)&timeout_arg);
 
 
-        for (int j = 0; j < sort_thd_num; j++)
+        for (int j = 0; j < run_config.sort_thread_num; j++)
             pthread_join(sort_thread_pool[j], NULL);
-        for (int j = 0; j < merge_thd_num; j++)
+        for (int j = 0; j < run_config.merge_thread_num; j++)
             pthread_join(merge_thread_pool[j], NULL);
 
-        for (int j = 0; j < sort_thd_num; j++)
+        for (int j = 0; j < run_config.sort_thread_num; j++)
         {
             printf("Main, Thd -> %d: %s\n", j, func_name[jobs[j]->sort_func]);
             if (PRINTKEY == 1)
@@ -126,6 +130,16 @@ int main(int argc, char *argv[])
             printKeys(done_job->records, done_job->num);
             delim;
         }
+
+        gettimeofday(&end, &tz);
+        int sec = end.tv_sec - start.tv_sec;
+        int usec = end.tv_usec - start.tv_usec;
+        if (usec < 0){
+            sec -= 1;
+            usec += 1000000;
+        }
+        float used = sec + usec / 1000000.0;
+        printf("Main, sort %d records, using %.6f seconds\n", run_config.record_num, used);
 #endif
     }
 

@@ -3,6 +3,33 @@
 int num_fill = 0;
 int front = 0;
 int rear = 0;
+config run_config;
+
+void init_config(int byte){
+    int merger_vs_sorter = 10;
+    int record_per_sort_thread = 1000;
+    int max_sort_thread = 30;
+
+    // Constant
+    run_config.record_per_thread = 1000;
+    run_config.record_num = byte / BYTE_PER_RECORD;
+
+    run_config.sort_thread_num = run_config.record_num / record_per_sort_thread;
+    if (run_config.sort_thread_num == 0 || run_config.record_num % record_per_sort_thread != 0)
+        run_config.sort_thread_num += 1;
+    
+    // sort_thread up bound
+    if (run_config.sort_thread_num > max_sort_thread){
+        run_config.sort_thread_num = max_sort_thread;
+        run_config.record_per_thread = run_config.record_num / run_config.sort_thread_num;
+    }
+    
+    run_config.merge_thread_num = run_config.sort_thread_num / merger_vs_sorter;
+    if (run_config.merge_thread_num == 0 || run_config.sort_thread_num % merger_vs_sorter != 0)
+        run_config.merge_thread_num += 1;
+    
+    run_config.sorted_job_num = run_config.sort_thread_num + run_config.merge_thread_num + 1;
+}
 
 char *func_name[] = {
     [BUBBLE_SORT] = "bubble_sort",
@@ -118,7 +145,7 @@ void printKeys(record_t records[], int num)
  * @param filename 二进制文件名
  * @param buffer &(char *), 指向char *的指针的地址，不用提前malloc分配地址
  * @param seek 跳过多少个record
- * @param num 读取的record数, -1 表示读取全部
+ * @param num 读取的record数, -1表示从seek读取到结束, -2读取全部
  * @return int 读取的字节数
  *
  * @author Shihong Wang
@@ -131,8 +158,11 @@ int read_records(char *filename, byteStream *buffer, int seek, int num)
         psort_error("file open error");
 
     int byte = num * BYTE_PER_RECORD;
-    if (num < 0)
+    if (num == -1)
     {
+        fseek(bin_file, 0L, 2);
+        byte = (int) ftell(bin_file) - (seek * BYTE_PER_RECORD);
+    } else if (num == -2){
         fseek(bin_file, 0L, 2);
         byte = (int) ftell(bin_file);
     }
@@ -418,21 +448,6 @@ int merge_sort(record_t records[], int num, bool reverse)
 
 
 /**
- * @brief infer_thread_num 用于推断需要多少个线程进行排序
- *
- * @param byte 二进制文件字节数
- * @return int 需要的线程数量
- *
- * @author Shihong Wang
- * @date 2022.11.2
- */
-int infer_thread_num(int byte)
-{
-    return byte / (RECORD_PER_THREAD * BYTE_PER_RECORD);
-}
-
-
-/**
  * @brief sort_job结构体的初始化函数
  *
  * @param sort_func 使用的sort function类型
@@ -566,7 +581,15 @@ void *sort_worker(void *arg)
     return (void *)0;
 }
 
-
+/**
+ * @brief append_worker是append线程执行的函数，每个append_worker都是producer
+ * 
+ * @param arg (sort_job*)指向sort_job的结构体
+ * @return void* 程序状态码
+ * 
+ * @author Shihong Wang
+ * @date 2022.11.3
+ */
 void *append_worker(void *arg){
     sort_job *job = (sort_job*) arg;
     // 下面因为要访问共享资源sorted_jobs，所以都是临界区
@@ -602,7 +625,6 @@ void *append_worker(void *arg){
  *          后仍有sort_worker尝试do_fill，就会造成只有生产者而没有消费者的情况，此时merge_worker和sort_worker都会因为cv卡住
  *      该bug的修复方式就是将merge_worker拆分为sort_worker，重新插入的工作交给append_worker处理（子线程），以保证merge_worker不会等待
  * 
- * @todo fix bug #3
  * @bug #3 多个sort_worker，多个merge_worker，会发生死锁:
  *          已经没有了sort_worker，而所有的merge_worker都只有一个job，则此时发生死锁
  *          此bug类似于哲学家进餐问题，可以使用一个服务生（管理员）来管理、启动merge_worker
@@ -614,8 +636,7 @@ void *append_worker(void *arg){
 void *merge_worker(void *arg)
 {   
     // receive arg
-    merge_arg *marg = (merge_arg *)arg;
-    int max_record = marg->max_record;
+    bool wait = *(bool *)arg;
 
     bool last_job = false;
     // Notes: 不知道为什么，先malloc在free就不会报错，真的不理解为什么，难道是Copy-on-Write机制？真搞不明白
@@ -646,7 +667,7 @@ void *merge_worker(void *arg)
             pthread_mutex_lock(&sorted_jobs_mutex);
             // wait for producer
             while (is_empty()){
-                if (marg->timeout)
+                if (wait)
                     state = pthread_cond_timedwait(&sorted_jobs_cond, &sorted_jobs_mutex, &expire);
                 else
                     state = pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
@@ -673,7 +694,7 @@ void *merge_worker(void *arg)
 
             // check if last job
             for (int i = 0; i < 2; i++){
-                if (jobs[i] != NULL && jobs[i]->num == max_record){
+                if (jobs[i] != NULL && jobs[i]->num == run_config.record_num){
                     job = jobs[i];
                     merge = false, last_job = true;;
                     break;
