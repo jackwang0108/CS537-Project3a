@@ -66,8 +66,8 @@ int main(int argc, char *argv[])
 
         int max_record = byte / BYTE_PER_RECORD;
         int sort_thd_num = infer_thread_num(byte);
-        int merge_thd_num = 1;
-        // int merge_thd_num = sort_thd_num / 2;
+        // int merge_thd_num = 3;
+        int merge_thd_num = sort_thd_num / 4;
         sorted_jobs = (sort_job**)malloc(sizeof(sort_job*) * (sort_thd_num + merge_thd_num + 1));
 
         // init mutual exclusion (Mutex) and conditional variable (cv)
@@ -87,9 +87,15 @@ int main(int argc, char *argv[])
         }
 
         // start merge threads
+        merge_arg wait_arg = {max_record, false};
+        merge_arg timeout_arg = {max_record, true};
         pthread_t *merge_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * merge_thd_num);
         for (int j = 0; j < merge_thd_num; j++)
-            pthread_create(&merge_thread_pool[j], NULL, merge_worker, (void *)&max_record);
+            if (j == 0)
+                pthread_create(&merge_thread_pool[j], NULL, merge_worker, (void *)&wait_arg);
+            else
+                pthread_create(&merge_thread_pool[j], NULL, merge_worker, (void *)&timeout_arg);
+
 
         for (int j = 0; j < sort_thd_num; j++)
             pthread_join(sort_thread_pool[j], NULL);

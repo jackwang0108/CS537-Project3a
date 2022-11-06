@@ -19,13 +19,14 @@
 #define SORT_SUCCESS 0
 #define SORT_FAILURE 1
 #define BYTE_PER_RECORD 100
-#define RECORD_PER_THREAD 10
+#define RECORD_PER_THREAD 10000
 #define MAX_SORTED_JOBS 6
 
 #ifndef DEBUG
 #define get_key(record) *(int *)(*record)
-#define is_empty() return front == rear
-#define is_full() return (rear + 1) % MAX_SORTED_JOBS == front
+#define is_empty() front == rear
+#define is_full() (rear + 1) % MAX_SORTED_JOBS == front
+#define get_num() num_fill;
 #endif
 #define psort_error(s) _psort_error(s, __LINE__)
 #define min(a, b) (a < b ? a : b)
@@ -98,11 +99,6 @@ int get_key(record_t record)
     if (NULL == record)
         psort_error("record == NULL, didn't initialize?");
     return *(int *)(*record);
-    // 下面的计算方式有问题，忽略了大端序和小端序
-    // unsigned int temp = 0;
-    // for (int i = 0; i < 4; i++)
-    //     temp = temp << 8 | ((int) (*record)[i]);
-    // return (int) temp;
 }
 #endif
 
@@ -519,6 +515,8 @@ sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *fi
     job->seek = seek;
     job->num = num;
     job->reverse = reverse;
+    job->buffer = NULL;
+    job->records = NULL;
     if (NULL == filename)
     {
         job->filename = NULL;
@@ -543,8 +541,10 @@ sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *fi
 int sort_job_release(sort_job *job)
 {
     free(job->filename);
-    free(job->buffer);
-    free(job->records);
+    if (job->buffer != NULL)
+        free(job->buffer);
+    if (job->records != NULL)
+        free(job->records);
     free(job);
     return 0;
 }
@@ -603,6 +603,10 @@ bool is_full(){
 
 bool is_empty(){
     return front == rear;
+}
+
+bool get_num(){
+    return num_fill;
 }
 #endif
 
@@ -668,60 +672,112 @@ void *append_worker(void *arg){
     return (void*)0;
 }
 
+
+typedef struct _merge_arg{
+    int max_record;
+    bool timeout;
+}merge_arg;
+
 /**
  * @brief merge_worker是merge线程执行的函数，每个merge_worker是消费者
  *
  * @param arg 指向int的指针，用于判断是否已经排序完毕，调用前和使用前必须要进行强制类型转换
  * @return void*
  *
- * @bug 多个sort_worker，一个merge_worker，下述情况会发生死锁:
+ * @bug #1 多个sort_worker，一个merge_worker，下述情况会发生死锁:
  *          merge_worker正在merge，而sorted_jobs已经全部运行完，并且填充满sorted_jobs，
  *          则此时由于sorted_jobs已经被填充满，故此时merge_worker等待consumer消耗sorted_jobs
  *          由于只有一个merge_worker，故此时就会卡在这里
  *      该bug最简单的修复方式是满足：sort_worker_thd + merge_worker_thd < max_sorted_jobs
  * 
- * @bug 多个sort_worker，一个merge_worker，下述情况会发生死锁:
+ * @bug #2 多个sort_worker，一个merge_worker，下述情况会发生死锁:
  *          merge_worker在取完了sorted_job后，就从消费者变成了生产者，若此时有别的sort_worker填满了sorted_jobs
  *          后仍有sort_worker尝试do_fill，就会造成只有生产者而没有消费者的情况，此时merge_worker和sort_worker都会因为cv卡住
  *      该bug的修复方式就是将merge_worker拆分为sort_worker，重新插入的工作交给append_worker处理（子线程）
  * 
  * @todo fix bug #3
- * @bug 多个sort_worker，多个merge_worker，会发生死锁
+ * @bug #3 多个sort_worker，多个merge_worker，会发生死锁:
+ *          已经没有了sort_worker，而所有的merge_worker都只有一个job，则此时发生死锁
+ *          此bug类似于哲学家进餐问题，可以使用一个服务生（管理员）来管理、启动merge_worker
+ *      该bug的修复方法就是等待一段时间后放弃merge，将job放回队列中，同时必须要有一个不会timeout的merge_thread
  *
  * @author Shihong Wang
  * @date 2022.11.4
  */
 void *merge_worker(void *arg)
-{
-    while (true)
-    {
-        bool merge = true;
-        int max_record = *(int *)arg;
-        sort_job *jobs[2];
-        for (int i = 0; i < 2; i++)
-        {
+{   
+    // receive arg
+    merge_arg *marg = (merge_arg *)arg;
+    int max_record = marg->max_record;
+
+    bool last_job = false;
+    // Notes: 不知道为什么，先malloc在free就不会报错，真的不理解为什么，难道是Copy-on-Write机制？真搞不明白
+    sort_job *job = (sort_job *)malloc(sizeof(sort_job) * 1);
+    free(job);
+    job = NULL;
+
+    // merge main
+    while (true && !last_job)
+    {   
+        // merge once
+        last_job = false;
+        bool giveup = false, merge = true;
+        int fill_ptr = 0;
+        sort_job *jobs[2] = {NULL, NULL};
+        while (fill_ptr < 2 && !last_job && !giveup)
+        {   
+            int state;
+            struct timeval now;
+            struct timespec expire;
+            gettimeofday(&now, NULL);
+            // Attention: 等待一会，否则放弃
+            expire.tv_sec = now.tv_sec;
+            expire.tv_nsec = now.tv_usec + 500000000;
+
+            // try to get a sorted job
             // 下面因为要访问共享资源sorted_jobs，所以都是临界区
             pthread_mutex_lock(&sorted_jobs_mutex);
-            // 等待producer
-            while (is_empty())
-                pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
-            // 从sorted_jobs队列中拿两个job出来，所以merge_worker是consumer
-            jobs[i] = do_get();
+            // wait for producer
+            while (is_empty()){
+                if (marg->timeout)
+                    state = pthread_cond_timedwait(&sorted_jobs_cond, &sorted_jobs_mutex, &expire);
+                else
+                    state = pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
+                // timeout, no producer give up 
+                if (state != 0){
+                    giveup = true;
+                    for (int i = 0; i < 2; i++){
+                        if (jobs[i] != NULL){
+                            do_fill(jobs[i]);
+                            jobs[i] = NULL;
+                        }
+                    }
+                    fill_ptr = 0;
+                    break;
+                }
+            }
+            // get one job
+            if (state == 0){
+                jobs[fill_ptr++] = do_get();
+            }
             // 唤醒consumer
             pthread_cond_signal(&sorted_jobs_cond);
             pthread_mutex_unlock(&sorted_jobs_mutex);
 
-            // 最后一个job
-            if (jobs[i]->num == max_record)
-            {
-                merge = false;
-                break;
+            // check if last job
+            for (int i = 0; i < 2; i++){
+                if (jobs[i] != NULL && jobs[i]->num == max_record){
+                    job = jobs[i];
+                    merge = false, last_job = true;;
+                    break;
+                }
             }
         }
 
-        // Notes: 不知道为什么，先malloc在free就不会报错，真的不理解为什么，难道是Copy-on-Write机制？真搞不明白
-        sort_job *job = (sort_job *)malloc(sizeof(sort_job) * 1);
-        free(job);
+        // end thread
+        if (giveup)
+            break;
+
         if (merge)
         {
             // 归并排序
@@ -741,15 +797,10 @@ void *merge_worker(void *arg)
                     sort_job_release(jobs[i]);
             free(temp_records);
         }
-        else
-            job = jobs[0];
 
         // 将新的job插入到循环队列尾
         pthread_t append_thd;
         pthread_create(&append_thd, NULL, append_worker, (void *)job);
-
-        if (job->num == max_record)
-            break;
     }
 
     return (void *)0;
