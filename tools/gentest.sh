@@ -8,11 +8,11 @@
 shell=$(echo $SHELL)
 shell_folder=$(cd "$(dirname "$0")" || exit; pwd)
 
-$shell $shell_folder/autobuild.sh
+$shell "$shell_folder"/autobuild.sh
 if [ $# -eq 1 ]; then
     echo "Writing $1 records to test.bin..."
-    $shell_folder/bin/gentest "$1" $shell_folder/test.bin
+    "$shell_folder"/../bin/gentest "$1" "$shell_folder"/../test.bin
 else
     echo "Writing 10 records to test.bin..."
-    $shell_folder/bin/gentest 10 $shell_folder/test.bin
+    "$shell_folder"/../bin/gentest 10 "$shell_folder"/test.bin
 fi
