@@ -16,8 +16,8 @@
 #define DEBUG
 
 #define MAX_CHAR 50
-#define SORT_SUCCESS 0
-#define SORT_FAILURE 1
+#define SORT_SUCCESS 1
+#define SORT_FAILURE 0
 #define BYTE_PER_RECORD 100
 #define SORT_THREAD_NUM 8
 #define MAX_SORTED_JOBS 6
