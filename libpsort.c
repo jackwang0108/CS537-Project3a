@@ -60,12 +60,12 @@ void _psort_error(char *str, int lineno)
     str_c = (char *)malloc(sizeof(char) * (strlen(str) + strlen(line)));
     sprintf(str_c, "%s", line);
     sprintf(str_c + strlen(line), "%s", str);
-#else
-    str_c = str;
-#endif
-
     printf("%s\n", str_c);
     exit(EXIT_FAILURE);
+#else
+    fprintf(stderr, "An error has occurred\n");
+    exit(0);
+#endif
 }
 
 
