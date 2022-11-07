@@ -26,6 +26,8 @@
 
 int main(int argc, char *argv[])
 {
+    if (argc == 2)
+        psort_error("Empty input file");
 
     byteStream buffer;
 

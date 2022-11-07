@@ -13,11 +13,11 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#define DEBUG
+// #define DEBUG
 
 #define MAX_CHAR 50
-#define SORT_SUCCESS 1
-#define SORT_FAILURE 0
+#define SORT_SUCCESS 0
+#define SORT_FAILURE 1
 #define BYTE_PER_RECORD 100
 #define SORT_THREAD_NUM 8
 #define MAX_SORTED_JOBS 6
@@ -32,7 +32,11 @@ typedef struct _config{
 extern config run_config;
 void init_config();
 
+#ifdef DEBUG
 #define psort_error(s) _psort_error(s, __LINE__)
+#else
+#define psort_error(s) _psort_error("An error has occurred", __LINE__)
+#endif
 #define min(a, b) (a < b ? a : b)
 #define delim printf("--------------------------------------\n");
 
