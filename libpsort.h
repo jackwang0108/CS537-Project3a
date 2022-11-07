@@ -50,7 +50,7 @@ bool _is_little_endian();
 char *byte2char(const byteStream buffer, int len);
 static inline int get_key(record_t record);
 void printKeys(record_t records[], int num);
-int read_records(char *filename, byteStream *buffer, int seek, int num);
+int read_records(const char *filename, byteStream *buffer, int seek, int num);
 int parse_records(byteStream buffer, record_t *records[], int byte);
 
 
@@ -88,6 +88,7 @@ typedef struct _sort_job
 // sort_job functions
 sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *filename);
 int sort_job_release(sort_job *job);
+int write_records(const char *filename, sort_job *job);
 
 
 /**

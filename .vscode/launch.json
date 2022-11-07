@@ -14,7 +14,8 @@
             "program": "${workspaceFolder}/bin/${input:executable}",
             //指定运行参数
             "args": [
-                "test.bin"
+                "test.bin",
+                "sorted.bin"
             ],
             "stopAtEntry": false,
             //指定工作目录

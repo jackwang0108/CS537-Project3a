@@ -151,7 +151,7 @@ void printKeys(record_t records[], int num)
  * @author Shihong Wang
  * @date 2022.10.29
  */
-int read_records(char *filename, byteStream *buffer, int seek, int num)
+int read_records(const char *filename, byteStream *buffer, int seek, int num)
 {
     FILE *bin_file = fopen(filename, "rb");
     if (NULL == bin_file)
@@ -179,6 +179,21 @@ int read_records(char *filename, byteStream *buffer, int seek, int num)
 
     fclose(bin_file);
     return byte;
+}
+
+
+int write_records(const char* filename, sort_job*job){
+    FILE *bin_file = fopen(filename, "wb");
+    if (bin_file == NULL)
+        psort_error("file open error");
+    
+    int writte_byte = 0;
+    for (int i = 0; i < job->num; i++){
+        if (fwrite(*(job->records[i]), BYTE_PER_RECORD, 1, bin_file) != 1)
+            psort_error("record write error");
+        writte_byte += BYTE_PER_RECORD;
+    }
+    return writte_byte;
 }
 
 
