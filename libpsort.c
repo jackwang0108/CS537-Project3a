@@ -462,6 +462,11 @@ int merge_sort(record_t records[], int num, bool reverse)
 }
 
 
+sort_job **sorted_jobs;
+pthread_cond_t sorted_jobs_cond;
+pthread_mutex_t sorted_jobs_mutex;
+
+
 /**
  * @brief sort_job结构体的初始化函数
  *

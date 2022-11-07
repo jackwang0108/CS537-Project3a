@@ -62,9 +62,9 @@ int main(int argc, char *argv[])
     gettimeofday(&start, &tz);
 
     int byte = read_records(argv[1], &buffer, 0, -1);
-    printf("Test file: %s\n", argv[1]);
-    printf("%s -> %d bytes\n", argv[1], byte);
-    delim;
+    // printf("Test file: %s\n", argv[1]);
+    // printf("%s -> %d bytes\n", argv[1], byte);
+    // delim;
 
     // init all
     init_config(byte);
@@ -115,18 +115,18 @@ int main(int argc, char *argv[])
     pthread_cond_signal(&sorted_jobs_cond);
     pthread_mutex_unlock(&sorted_jobs_mutex);
 
-    if (write_records(argv[2], done_job) == byte)
+    if (write_records(argv[2], done_job) != byte)
         psort_error("read record and write record mismatch");
 
     for (int j = 0; j < run_config.sort_thread_num; j++)
     {
-        printf("Main, Thd -> %d: %s\n", j, func_name[jobs[j]->sort_func]);
         if (PRINTKEY == 1)
         {
+            printf("Main, Thd -> %d: %s\n", j, func_name[jobs[j]->sort_func]);
             printf("After Sorts:\n");
             printKeys(jobs[j]->records, jobs[j]->num);
+            delim;
         }
-        delim;
     }
     if (PRINTKEY == 1){
         printf("Main, After Merge:\n");
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
         usec += 1000000;
     }
     float used = sec + usec / 1000000.0;
-    printf("Main, sort %d records, using %.6f seconds\n", run_config.record_num, used);
+    // printf("Main, sort %d records, using %.6f seconds\n", run_config.record_num, used);
 #endif
 
     return 0;

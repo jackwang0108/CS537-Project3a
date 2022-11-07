@@ -99,9 +99,9 @@ int write_records(const char *filename, sort_job *job);
  * @brief 此外，因为sorted_job可能满，也可能空，所以需要一个conditional variable来在producer和consumer之间相互通知
  */
 extern int num_fill, front, rear;
-sort_job **sorted_jobs;
-pthread_cond_t sorted_jobs_cond;
-pthread_mutex_t sorted_jobs_mutex;
+extern sort_job **sorted_jobs;
+extern pthread_cond_t sorted_jobs_cond;
+extern pthread_mutex_t sorted_jobs_mutex;
 
 
 // multi-thread functions
