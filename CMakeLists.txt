@@ -31,6 +31,16 @@ target_link_libraries(
 )
 
 add_executable(
+    printkey
+    printkey.c
+)
+
+target_link_libraries(
+    printkey
+    ppsort
+)
+
+add_executable(
     gentest
     ${PROJECT_SOURCE_DIR}/gentest.c
 )
