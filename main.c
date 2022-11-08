@@ -87,10 +87,10 @@ int main(int argc, char *argv[])
     int record_left = run_config.record_num;
     int all = 0;
     sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * run_config.sort_thread_num);
-    for (int j = 0; j < run_config.sort_thread_num + 1; j++)
+    for (int j = 0; j < run_config.sort_thread_num; j++)
     {
         int num = run_config.record_per_thread;
-        if (record_left < run_config.record_per_thread){
+        if (j == run_config.sort_thread_num - 1){
             num = -1;
             all += record_left;
         } else 
