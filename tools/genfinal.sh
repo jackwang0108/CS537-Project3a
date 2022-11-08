@@ -1,5 +1,6 @@
 shell_folder=$(cd "$(dirname "$0")" || exit; pwd)
 final="${shell_folder}"/../result/psort.c
+filesize=${shell_folder}/../result/filesize.c
 makefile="${shell_folder}"/../result/makefile
 
 if [ ! -d "$shell_folder"/../result ]; then
@@ -17,13 +18,46 @@ sed '1d;2d' "${shell_folder}/../main.c" >> "${final}"
 echo '\033[32mGenerating makefile...\033[0m'
 echo '
 objs = psort.o
-\n
-psort: $(objs)\n
-	gcc -o psort $(objs)\n
-\n
-psort.o: psort.c\n
-	gcc -c psort.c\n
-\n
-clean: \n
-	rm psort $(objs)\n
+
+psort: $(objs)
+	gcc -o psort $(objs)
+
+psort.o: psort.c
+	gcc -c psort.c
+
+clean: 
+	rm psort $(objs)
 ' > "${makefile}"
+
+
+echo '
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE
+#endif
+
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+
+off_t get_file_size(const char *filename)  
+{  
+    struct stat64 buf;  
+    if(stat64(filename, &buf)<0)  
+    {
+        printf("cannot open file\n");
+        return 0;  
+    } 
+    printf("file: %s, st_size: %ld\n", filename, (off_t)buf.st_size);
+    return (off_t)buf.st_size;  
+}
+
+int main(int argc, char*argv[]){
+    get_file_size();
+    return 0;
+}
+' > "${filesize}"
