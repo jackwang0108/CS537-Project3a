@@ -46,18 +46,18 @@ echo '
 
 off_t get_file_size(const char *filename)  
 {  
-    struct stat64 buf;  
-    if(stat64(filename, &buf)<0)  
+    struct stat buf;  
+    if(stat(filename, &buf)<0)  
     {
-        printf("cannot open file\n");
+        printf("cannot open file\\n");
         return 0;  
     } 
-    printf("file: %s, st_size: %ld\n", filename, (off_t)buf.st_size);
+    printf("file: %s, st_size: %ld\\n", filename, (off_t)buf.st_size);
     return (off_t)buf.st_size;  
 }
 
-int main(int argc, char*argv[]){
-    get_file_size();
+int main(int argc, char* argv[]){
+    get_file_size(argv[1]);
     return 0;
 }
 ' > "${filesize}"
