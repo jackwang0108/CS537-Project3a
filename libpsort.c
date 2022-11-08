@@ -23,6 +23,7 @@ void init_config(int byte){
         run_config.sort_thread_num = max_sort_thread;
         run_config.record_per_thread = run_config.record_num / run_config.sort_thread_num;
     }
+    // run_config.sort_thread_num += 1;
     
     run_config.merge_thread_num = run_config.sort_thread_num / merger_vs_sorter;
     if (run_config.merge_thread_num == 0 || run_config.sort_thread_num % merger_vs_sorter != 0)
@@ -166,6 +167,8 @@ int read_records(const char *filename, byteStream *buffer, int seek, int num)
         fseek(bin_file, 0L, 2);
         byte = (int) ftell(bin_file);
     }
+    if (byte < 0)
+        psort_error("zero record");
     fseek(bin_file, (long)(seek * BYTE_PER_RECORD), 0);
 
     if (byte % 100 != 0)
@@ -688,9 +691,9 @@ void *merge_worker(void *arg)
             // wait for producer
             while (is_empty()){
                 if (wait)
-                    state = pthread_cond_timedwait(&sorted_jobs_cond, &sorted_jobs_mutex, &expire);
-                else
                     state = pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
+                else
+                    state = pthread_cond_timedwait(&sorted_jobs_cond, &sorted_jobs_mutex, &expire);
                 // timeout, no producer give up 
                 if (state != 0){
                     giveup = true;
@@ -714,7 +717,7 @@ void *merge_worker(void *arg)
 
             // check if last job
             for (int i = 0; i < 2; i++){
-                if (jobs[i] != NULL && jobs[i]->num == run_config.record_num){
+                if (jobs[i] != NULL && jobs[i]->num >= run_config.record_num){
                     job = jobs[i];
                     merge = false, last_job = true;;
                     break;

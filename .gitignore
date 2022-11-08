@@ -54,7 +54,7 @@ dkms.conf
 
 bin
 build
-*.bin
+*.bin*
 
 .vscode/*
 !.vscode/launch.json

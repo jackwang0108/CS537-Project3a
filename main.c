@@ -63,32 +63,53 @@ int main(int argc, char *argv[])
     struct timeval start, end;
     gettimeofday(&start, &tz);
 
-    int byte = read_records(argv[1], &buffer, 0, -1);
-    // printf("Test file: %s\n", argv[1]);
-    // printf("%s -> %d bytes\n", argv[1], byte);
-    // delim;
 
     // init all
+    int byte = read_records(argv[1], &buffer, 0, -1);
     init_config(byte);
     pthread_mutex_init(&sorted_jobs_mutex, NULL);
     pthread_cond_init(&sorted_jobs_cond, NULL);
     sorted_jobs = (sort_job**)malloc(sizeof(sort_job*) * (run_config.sorted_job_num));
     pthread_t *sort_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * run_config.sort_thread_num);
 
+#ifdef DEBUG
+    printf("Test file: %s\n", argv[1]);
+    printf("%s -> %d bytes, %d records\n", argv[1], byte, run_config.record_num);
+    delim;
+    printf("Sort thread: %d, %d records per thread\n", run_config.sort_thread_num, run_config.record_per_thread);
+    printf("Merge thread: %d\n", run_config.merge_thread_num);
+    printf("Sorted job: %d\n", run_config.sort_thread_num);
+    delim;
+#endif
+
     // start sort threads
     int seek = 0;
     int record_left = run_config.record_num;
+    int all = 0;
     sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * run_config.sort_thread_num);
-    for (int j = 0; j < run_config.sort_thread_num; j++)
+    for (int j = 0; j < run_config.sort_thread_num + 1; j++)
     {
         int num = run_config.record_per_thread;
-        if (record_left < run_config.record_per_thread)
+        if (record_left < run_config.record_per_thread){
             num = -1;
+            all += record_left;
+        } else 
+            all += num;
         jobs[j] = sort_job_init(MERGE_SORT, seek, num, false, argv[1]);
         pthread_create(&sort_thread_pool[j], NULL, sort_worker, (void *)jobs[j]);
         seek += num;
         record_left -= num;
+#ifdef DEBUG
+        printf("Sort thread %d:\n", j);
+        printf("sort func %d -> %s\n", jobs[j]->sort_func, func_name[jobs[j]->sort_func]);
+        printf("seek -> %d, num -> %d\n", jobs[j]->seek, jobs[j]->num);
+        delim;
+#endif
     }
+#ifdef DEBUG
+    printf("All allocated records: %d\n", all);
+    delim;
+#endif
 
     // start merge threads
     bool wait_arg = true;
@@ -116,6 +137,11 @@ int main(int argc, char *argv[])
     // 唤醒consumer
     pthread_cond_signal(&sorted_jobs_cond);
     pthread_mutex_unlock(&sorted_jobs_mutex);
+
+#ifdef DEBUG
+    printf("Finished, %d records sorted!\n", all);
+    printf("Writing...\n");
+#endif
 
     if (write_records(argv[2], done_job) != byte)
         psort_error("read record and write record mismatch");
