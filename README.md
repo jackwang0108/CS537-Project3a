@@ -2,6 +2,8 @@
 
 CS537 Project3 codes by team Shihong Wang and Tong Xia
 
+Introduction could be found here: http://jackwang.cafe/2022/11/08/parallel-sort/ 
+
 ## Updates
 
 ### 2022.10.27: Project Detail Update!
