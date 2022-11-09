@@ -167,7 +167,7 @@ int read_records(const char *filename, byteStream *buffer, int seek, int num)
         fseek(bin_file, 0L, 2);
         byte = (int) ftell(bin_file);
     }
-    if (byte < 0)
+    if (byte <=0)
         psort_error("zero record");
     fseek(bin_file, (long)(seek * BYTE_PER_RECORD), 0);
 

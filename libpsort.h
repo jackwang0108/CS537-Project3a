@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#define DEBUG
+// #define DEBUG
 
 #define MAX_CHAR 50
 #define SORT_SUCCESS 1
