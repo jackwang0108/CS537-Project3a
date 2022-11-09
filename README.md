@@ -20,11 +20,43 @@ PS: 多线程debug很他妈痛苦，一个bug修了一天
 
 ### 2022.11.5: Finished Parallel Sort Version 2
 
-Paraller Sort Version 2: multiple sort_worker v.s. multiple merge_worker
+Parallel Sort Version 2: multiple sort_worker v.s. multiple merge_worker
 
 PS: 遇到了哲学家进餐问题
 
-TODO: 支持大文件，目前最多对2G的文件(20,000,000)的文件进行排序，后续需要使用mmap和stat来实现读写大文件
+### 2022.11.8: Finished Parallel Submisson Version
+
+Parallel Sort Submission Version: meet all test and beats benchmark.
+
+
+
+## How to test
+
+### test
+
+Use the official script to test the program
+
+```shell
+~cs537-1/tests/p3a/test-psort.sh -c
+```
+
+### benchmark
+
+Compare the `real`、`user` and `sys` to compare the program with benchmark program. Rember to replace the `#NUM#` with number.
+
+To get the time of `benchmark` program
+
+```shell
+time ~cs537-1/tests/p3a/efficiency_tests/benchmark ~cs537-1/tests/p3a/efficiency_tests/eff{#NUM#}.in ./out.txt
+```
+
+To get the time of `your` program
+
+```shell
+time psort ~cs537-1/tests/p3a/efficiency_tests/eff1.txt ./out.txt
+```
+
+
 
 ## How to develop
 
