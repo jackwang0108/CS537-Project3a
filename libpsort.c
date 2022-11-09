@@ -1,8 +1,5 @@
 #include "libpsort.h"
 
-int num_fill = 0;
-int front = 0;
-int rear = 0;
 config run_config;
 
 void init_config(int byte){
@@ -99,7 +96,7 @@ bool _is_little_endian()
  *
  * @bug fixed, unsigned char问题
  */
-char *byte2char(const byteStream buffer, int len)
+char *byte2char(const byteStream_t buffer, int len)
 {
     int pos = 0;
     bool little_endian = !_is_little_endian();
@@ -152,7 +149,7 @@ void printKeys(record_t records[], int num)
  * @author Shihong Wang
  * @date 2022.10.29
  */
-int read_records(const char *filename, byteStream *buffer, int seek, int num)
+int read_records(const char *filename, byteStream_t *buffer, int seek, int num)
 {
     FILE *bin_file = fopen(filename, "rb");
     if (NULL == bin_file)
@@ -174,7 +171,7 @@ int read_records(const char *filename, byteStream *buffer, int seek, int num)
     if (byte % 100 != 0)
         psort_error("record mismatch");
 
-    *buffer = (byteStream)malloc(sizeof(char) * byte);
+    *buffer = (byteStream_t)malloc(sizeof(char) * byte);
     if (NULL == *buffer)
         psort_error("malloc fail");
     if (fread(*buffer, 1, byte, bin_file) != byte)
@@ -185,7 +182,14 @@ int read_records(const char *filename, byteStream *buffer, int seek, int num)
 }
 
 
-int write_records(const char* filename, sort_job*job){
+/**
+ * @brief 将job中的record写入到filename中
+ * 
+ * @param filename 要写入的文件的文件名
+ * @param job 要写入的job的名称
+ * @return int 
+ */
+int write_records(const char* filename, sort_job_t*job){
     FILE *bin_file = fopen(filename, "wb");
     if (bin_file == NULL)
         psort_error("file open error");
@@ -211,7 +215,7 @@ int write_records(const char* filename, sort_job*job){
  * @author Shihong Wang
  * @date 2022.10.30
  */
-int parse_records(byteStream buffer, record_t *records[], int byte)
+int parse_records(byteStream_t buffer, record_t *records[], int byte)
 {
     int num = byte / 100;
 
@@ -221,7 +225,7 @@ int parse_records(byteStream buffer, record_t *records[], int byte)
 
     for (int i = 0; i < num; i++)
     {
-        (*records)[i] = (byteStream *)malloc(sizeof(byteStream));
+        (*records)[i] = (byteStream_t *)malloc(sizeof(byteStream_t));
         *(*records)[i] = (buffer + 100 * i);
     }
     return num;
@@ -465,7 +469,10 @@ int merge_sort(record_t records[], int num, bool reverse)
 }
 
 
-sort_job **sorted_jobs;
+int num_fill = 0;
+int front = 0;
+int rear = 0;
+sort_job_t **sorted_jobs;
 pthread_cond_t sorted_jobs_cond;
 pthread_mutex_t sorted_jobs_mutex;
 
@@ -483,9 +490,9 @@ pthread_mutex_t sorted_jobs_mutex;
  * @author Shihong Wang
  * @date 2022.11.2
  */
-sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *filename)
+sort_job_t *sort_job_init(int sort_func, int seek, int num, bool reverse, char *filename)
 {
-    sort_job *job = (sort_job *)malloc(sizeof(sort_job));
+    sort_job_t *job = (sort_job_t *)malloc(sizeof(sort_job_t));
     job->sort_func = sort_func;
     job->seek = seek;
     job->num = num;
@@ -514,7 +521,7 @@ sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *fi
  * @author Shihong Wang
  * @date 2022.11.3
  */
-int sort_job_release(sort_job *job)
+int sort_job_release(sort_job_t *job)
 {
     free(job->filename);
     if (job->buffer != NULL)
@@ -534,7 +541,7 @@ int sort_job_release(sort_job *job)
  * @author Shihong Wang
  * @date 2022.11.3
  */
-void do_fill(sort_job *sorted_job)
+void do_fill(sort_job_t *sorted_job)
 {
     sorted_jobs[rear] = sorted_job;
     rear = (rear + 1) % MAX_SORTED_JOBS;
@@ -550,9 +557,9 @@ void do_fill(sort_job *sorted_job)
  * @author Shihong Wang
  * @date 2022.11.3
  */
-sort_job *do_get()
+sort_job_t *do_get()
 {
-    sort_job *temp = sorted_jobs[front];
+    sort_job_t *temp = sorted_jobs[front];
     front = (front + 1) % MAX_SORTED_JOBS;
     num_fill--;
     return temp;
@@ -570,7 +577,7 @@ sort_job *do_get()
  */
 void *sort_worker(void *arg)
 {
-    sort_job *job = (sort_job *)arg;
+    sort_job_t *job = (sort_job_t *)arg;
     int byte = read_records(job->filename, &job->buffer, job->seek, job->num);
     job->num = byte / 100;
 
@@ -614,7 +621,7 @@ void *sort_worker(void *arg)
  * @date 2022.11.3
  */
 void *append_worker(void *arg){
-    sort_job *job = (sort_job*) arg;
+    sort_job_t *job = (sort_job_t*) arg;
     // 下面因为要访问共享资源sorted_jobs，所以都是临界区
     pthread_mutex_lock(&sorted_jobs_mutex);
     // Attention: 如果sorted_jobs已满(其他sort_worker/merge_worker线程填充)，且只有一个consumer，则此时会有卡住，所以要保证sorted_job有足够的容量，即sorted_job < sort_thread + merge_thread
@@ -663,7 +670,7 @@ void *merge_worker(void *arg)
 
     bool last_job = false;
     // Notes: 不知道为什么，先malloc在free就不会报错，真的不理解为什么，难道是Copy-on-Write机制？真搞不明白
-    sort_job *job = (sort_job *)malloc(sizeof(sort_job) * 1);
+    sort_job_t *job = (sort_job_t *)malloc(sizeof(sort_job_t) * 1);
     free(job);
     job = NULL;
 
@@ -674,7 +681,7 @@ void *merge_worker(void *arg)
         last_job = false;
         bool giveup = false, merge = true;
         int fill_ptr = 0;
-        sort_job *jobs[2] = {NULL, NULL};
+        sort_job_t *jobs[2] = {NULL, NULL};
         while (fill_ptr < 2 && !last_job && !giveup)
         {   
             int state;

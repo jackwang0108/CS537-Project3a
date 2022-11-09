@@ -2,7 +2,7 @@
 
 
 int main(int argc, char *argv[]){
-    byteStream buffer;
+    byteStream_t buffer;
     int byte = read_records(argv[1], &buffer, 0, -1);
     printf("PrintKey file: %s\n", argv[1]);
     printf("%s -> %d bytes\n", argv[1], byte);

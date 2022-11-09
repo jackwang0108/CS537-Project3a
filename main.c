@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     if (argc != 3)
         psort_error("Empty input file");
 
-    byteStream buffer;
+    byteStream_t buffer;
 
 #ifdef BENCHMARK
     // Code for benchmark
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     init_config(byte);
     pthread_mutex_init(&sorted_jobs_mutex, NULL);
     pthread_cond_init(&sorted_jobs_cond, NULL);
-    sorted_jobs = (sort_job**)malloc(sizeof(sort_job*) * (run_config.sorted_job_num));
+    sorted_jobs = (sort_job_t**)malloc(sizeof(sort_job_t*) * (run_config.sorted_job_num));
     pthread_t *sort_thread_pool = (pthread_t *)malloc(sizeof(pthread_t) * run_config.sort_thread_num);
 
 #ifdef DEBUG
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     int seek = 0;
     int record_left = run_config.record_num;
     int all = 0;
-    sort_job **jobs = (sort_job **)malloc(sizeof(sort_job *) * run_config.sort_thread_num);
+    sort_job_t **jobs = (sort_job_t **)malloc(sizeof(sort_job_t *) * run_config.sort_thread_num);
     for (int j = 0; j < run_config.sort_thread_num; j++)
     {
         int num = run_config.record_per_thread;
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     // 等待producer
     while (is_empty())
         pthread_cond_wait(&sorted_jobs_cond, &sorted_jobs_mutex);
-    sort_job* done_job = do_get();
+    sort_job_t* done_job = do_get();
     // 唤醒consumer
     pthread_cond_signal(&sorted_jobs_cond);
     pthread_mutex_unlock(&sorted_jobs_mutex);

@@ -41,17 +41,15 @@ void init_config();
  * @brief 字节流 就是 byte 数组，所以 byteStream 就是 byte*
  * @brief 一个 记录 就是100个字节，所以 record 就是 byteStream*
  */
-typedef unsigned char byte;
-typedef byte *byteStream;
-typedef byteStream *record_t;
+typedef unsigned char byte_t;
+typedef byte_t *byteStream_t;
+typedef byteStream_t *record_t;
 // basic utils
 void _psort_error(char *str, int lineno);
 bool _is_little_endian();
-char *byte2char(const byteStream buffer, int len);
+char *byte2char(const byteStream_t buffer, int len);
 static inline int get_key(record_t record);
 void printKeys(record_t records[], int num);
-int read_records(const char *filename, byteStream *buffer, int seek, int num);
-int parse_records(byteStream buffer, record_t *records[], int byte);
 
 
 /**
@@ -83,12 +81,14 @@ typedef struct _sort_job
     // Notes: done, records和buffer由worker填充
     bool done;
     record_t *records;
-    byteStream buffer;
-} sort_job;
+    byteStream_t buffer;
+} sort_job_t;
 // sort_job functions
-sort_job *sort_job_init(int sort_func, int seek, int num, bool reverse, char *filename);
-int sort_job_release(sort_job *job);
-int write_records(const char *filename, sort_job *job);
+sort_job_t *sort_job_init(int sort_func, int seek, int num, bool reverse, char *filename);
+int sort_job_release(sort_job_t *job);
+int read_records(const char *filename, byteStream_t *buffer, int seek, int num);
+int parse_records(byteStream_t buffer, record_t *records[], int byte);
+int write_records(const char *filename, sort_job_t *job);
 
 
 /**
@@ -99,7 +99,7 @@ int write_records(const char *filename, sort_job *job);
  * @brief 此外，因为sorted_job可能满，也可能空，所以需要一个conditional variable来在producer和consumer之间相互通知
  */
 extern int num_fill, front, rear;
-extern sort_job **sorted_jobs;
+extern sort_job_t **sorted_jobs;
 extern pthread_cond_t sorted_jobs_cond;
 extern pthread_mutex_t sorted_jobs_mutex;
 
@@ -108,8 +108,8 @@ extern pthread_mutex_t sorted_jobs_mutex;
 static inline bool is_full();
 static inline bool is_empty();
 static inline bool get_num();
-void do_fill(sort_job *sorted_job);
-sort_job *do_get();
+void do_fill(sort_job_t *sorted_job);
+sort_job_t *do_get();
 void *sort_worker(void *arg);
 void *append_worker(void *arg);
 void *merge_worker(void *arg);
